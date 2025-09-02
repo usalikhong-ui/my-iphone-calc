@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calc Fusion</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+            color: #2d3748;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .calculator-container {
+            width: 100%;
+            max-width: 400px;
+            margin: auto;
+            background-color: #fff;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 80vh;
+        }
+        .header {
+            background-color: #4c51bf;
+            color: #fff;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 20px 20px 0 0;
+        }
+        .header h1 {
+            font-size: 2.25rem;
+            font-weight: 700;
+            margin-left: 10px;
+        }
+        .main-content {
+            padding: 20px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .display-area {
+            background-color: #e2e8f0;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .history {
+            text-align: right;
+            color: #718096;
+            font-size: 1.2rem;
+            min-height: 24px;
+        }
+        .input-display {
+            text-align: right;
+            font-size: 2.5rem;
+            font-weight: 700;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+        .keyboard {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            padding: 20px;
+            background-color: #f0f4f8;
+        }
+        .btn {
+            padding: 20px;
+            font-size: 1.5rem;
+            font-weight: 700;
+            border-radius: 15px;
+            border: none;
+            cursor: pointer;
+            transition: transform 0.1s ease-in-out, box-shadow 0.1s ease-in-out;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .btn-blue { background-color: #4c51bf; color: #fff; }
+        .btn-purple { background-color: #6b46c1; color: #fff; }
+        .btn-green { background-color: #38a169; color: #fff; }
+        .btn-red { background-color: #e53e3e; color: #fff; }
+        .btn-gray { background-color: #cbd5e0; color: #2d3748; }
+        .btn-wide { grid-column: span 2; }
+        .btn-small { padding: 12px; } /* 新增小型按鈕樣式 */
+        .page {
+            display: none;
+            padding: 20px;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .page.active { display: flex; }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .input-group label {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+        .input-group input, .input-group select {
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e0;
+            font-size: 1.2rem;
+        }
+        .swap-btn {
+            background-color: #4c51bf;
+            color: #fff;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            text-align: center;
+        }
+        .swap-btn:hover { background-color: #3f479c; }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+
+    <div class="calculator-container">
+        <!-- Header with title and icon -->
+        <div class="header">
+            <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm2 2a1 1 0 00-1 1v2a1 1 0 001 1h2a1 1 0 001-1V7a1 1 0 00-1-1H5zm0 4a1 1 0 00-1 1v2a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 00-1-1H5zm4-4a1 1 0 00-1 1v2a1 1 0 001 1h2a1 1 0 001-1V7a1 1 0 00-1-1h-2zm0 4a1 1 0 00-1 1v2a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 00-1-1h-2zm4-4a1 1 0 00-1 1v2a1 1 0 001 1h2a1 1 0 001-1V7a1 1 0 00-1-1h-2zm0 4a1 1 0 00-1 1v2a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 00-1-1h-2z" clip-rule="evenodd"></path>
+            </svg>
+            <h1>Calc Fusion</h1>
+        </div>
+
+        <!-- Main content area -->
+        <div class="main-content">
+            <!-- Navigation for pages -->
+            <div class="flex justify-around mb-4 text-sm">
+                <button id="nav-calc" class="p-2 flex-1 rounded-lg font-bold text-white bg-blue-500 hover:bg-blue-600 transition-colors mx-1">計算機</button>
+                <button id="nav-weight" class="p-2 flex-1 rounded-lg font-bold text-gray-700 bg-gray-200 hover:bg-gray-300 transition-colors mx-1">重量換算</button>
+                <button id="nav-length" class="p-2 flex-1 rounded-lg font-bold text-gray-700 bg-gray-200 hover:bg-gray-300 transition-colors mx-1">長度換算</button>
+                <button id="nav-date" class="p-2 flex-1 rounded-lg font-bold text-gray-700 bg-gray-200 hover:bg-gray-300 transition-colors mx-1">日期計算</button>
+            </div>
+
+            <!-- Calculator page -->
+            <div id="calculator-page" class="page active flex-grow">
+                <div class="display-area mb-4">
+                    <div id="history" class="history"></div>
+                    <div id="input" class="input-display">0</div>
+                </div>
+                <div class="keyboard flex-grow">
+                    <button class="btn btn-red btn-small" onclick="handleClear('reset')">AC</button>
+                    <button class="btn btn-red btn-small" onclick="handleClear('delete')">DEL</button>
+                    <button class="btn btn-blue" onclick="handleInput('(')">(</button>
+                    <button class="btn btn-blue" onclick="handleInput(')')">)</button>
+                    <button class="btn btn-gray" onclick="handleInput('7')">7</button>
+                    <button class="btn btn-gray" onclick="handleInput('8')">8</button>
+                    <button class="btn btn-gray" onclick="handleInput('9')">9</button>
+                    <button class="btn btn-purple" onclick="handleInput('/')">/</button>
+                    <button class="btn btn-gray" onclick="handleInput('4')">4</button>
+                    <button class="btn btn-gray" onclick="handleInput('5')">5</button>
+                    <button class="btn btn-gray" onclick="handleInput('6')">6</button>
+                    <button class="btn btn-purple" onclick="handleInput('*')">×</button>
+                    <button class="btn btn-gray" onclick="handleInput('1')">1</button>
+                    <button class="btn btn-gray" onclick="handleInput('2')">2</button>
+                    <button class="btn btn-gray" onclick="handleInput('3')">3</button>
+                    <button class="btn btn-purple" onclick="handleInput('-')">−</button>
+                    <button class="btn btn-gray btn-wide" onclick="handleInput('0')">0</button>
+                    <button class="btn btn-gray" onclick="handleInput('.')">.</button>
+                    <button class="btn btn-purple" onclick="handleInput('+')">+</button>
+                    <button class="btn btn-green btn-wide" onclick="calculate()">=</button>
+                </div>
+                <div class="text-center text-sm text-gray-500 mt-4">
+                    <span id="datetime"></span>
+                </div>
+            </div>
+
+            <!-- Weight Converter page -->
+            <div id="weight-page" class="page">
+                <div class="input-group">
+                    <label for="weight-input1">輸入數值</label>
+                    <input type="number" id="weight-input1" oninput="convertWeight()">
+                    <select id="weight-unit1" onchange="convertWeight()">
+                        <option value="kg">公斤 (kg)</option>
+                        <option value="g">克 (g)</option>
+                        <option value="lb">磅 (lb)</option>
+                        <option value="oz">安士 (oz)</option>
+                    </select>
+                </div>
+                <div class="flex justify-center">
+                    <button id="swap-weight" class="swap-btn">調換單位</button>
+                </div>
+                <div class="input-group">
+                    <label for="weight-result">換算結果</label>
+                    <input type="number" id="weight-result" readonly>
+                    <select id="weight-unit2" onchange="convertWeight()">
+                        <option value="g">克 (g)</option>
+                        <option value="kg">公斤 (kg)</option>
+                        <option value="oz">安士 (oz)</option>
+                        <option value="lb">磅 (lb)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Length Converter page -->
+            <div id="length-page" class="page">
+                <div class="input-group">
+                    <label for="length-input1">輸入數值</label>
+                    <input type="number" id="length-input1" oninput="convertLength()">
+                    <select id="length-unit1" onchange="convertLength()">
+                        <option value="mm">毫米 (mm)</option>
+                        <option value="cm">厘米 (cm)</option>
+                        <option value="m">米 (m)</option>
+                        <option value="km">公里 (km)</option>
+                        <option value="inch">吋 (in)</option>
+                        <option value="ft">呎 (ft)</option>
+                        <option value="mile">英里 (mi)</option>
+                    </select>
+                </div>
+                <div class="flex justify-center">
+                    <button id="swap-length" class="swap-btn">調換單位</button>
+                </div>
+                <div class="input-group">
+                    <label for="length-result">換算結果</label>
+                    <input type="number" id="length-result" readonly>
+                    <select id="length-unit2" onchange="convertLength()">
+                        <option value="cm">厘米 (cm)</option>
+                        <option value="mm">毫米 (mm)</option>
+                        <option value="m">米 (m)</option>
+                        <option value="km">公里 (km)</option>
+                        <option value="ft">呎 (ft)</option>
+                        <option value="inch">吋 (in)</option>
+                        <option value="mile">英里 (mi)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Date Calculator page -->
+            <div id="date-page" class="page">
+                <div class="input-group">
+                    <label for="start-date">開始日期</label>
+                    <input type="date" id="start-date" class="p-2 border rounded-lg">
+                </div>
+                <div class="input-group">
+                    <label for="end-date">結束日期</label>
+                    <input type="date" id="end-date" class="p-2 border rounded-lg">
+                </div>
+                <button id="calculate-date" class="swap-btn mt-4">計算日期</button>
+                <div id="date-result" class="mt-4 text-center font-bold text-lg"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // DOM 元素
+        const displayInput = document.getElementById('input');
+        const displayHistory = document.getElementById('history');
+        const calcPage = document.getElementById('calculator-page');
+        const weightPage = document.getElementById('weight-page');
+        const lengthPage = document.getElementById('length-page');
+        const datePage = document.getElementById('date-page');
+        const navCalc = document.getElementById('nav-calc');
+        const navWeight = document.getElementById('nav-weight');
+        const navLength = document.getElementById('nav-length');
+        const navDate = document.getElementById('nav-date');
+        const datetimeDisplay = document.getElementById('datetime');
+
+        // 單位換算元素
+        const weightInput1 = document.getElementById('weight-input1');
+        const weightUnit1 = document.getElementById('weight-unit1');
+        const weightUnit2 = document.getElementById('weight-unit2');
+        const weightResult = document.getElementById('weight-result');
+        const swapWeightBtn = document.getElementById('swap-weight');
+
+        const lengthInput1 = document.getElementById('length-input1');
+        const lengthUnit1 = document.getElementById('length-unit1');
+        const lengthUnit2 = document.getElementById('length-unit2');
+        const lengthResult = document.getElementById('length-result');
+        const swapLengthBtn = document.getElementById('swap-length');
+
+        const startDateInput = document.getElementById('start-date');
+        const endDateInput = document.getElementById('end-date');
+        const calculateDateBtn = document.getElementById('calculate-date');
+        const dateResultDiv = document.getElementById('date-result');
+
+        // 狀態變數
+        let currentInput = '0';
+        let history = '';
+        let lastCharIsOperator = false;
+
+        // 單位換算率
+        const weightRates = {
+            'kg': 1, 'g': 1000, 'lb': 2.20462, 'oz': 35.274
+        };
+        const lengthRates = {
+            'mm': 1, 'cm': 10, 'm': 1000, 'km': 1000000, 'inch': 25.4, 'ft': 304.8, 'mile': 1609340
+        };
+
+        // 處理計算機按鈕輸入
+        function handleInput(value) {
+            if (currentInput === '0' && value !== '.' && value !== '(') {
+                currentInput = value;
+            } else {
+                currentInput += value;
+            }
+            displayInput.textContent = currentInput;
+            lastCharIsOperator = isOperator(value);
+        }
+
+        // 清除或刪除
+        function handleClear(type) {
+            if (type === 'reset') {
+                currentInput = '0';
+                history = '';
+                displayHistory.textContent = '';
+            } else if (type === 'delete') {
+                currentInput = currentInput.slice(0, -1);
+                if (currentInput === '') {
+                    currentInput = '0';
+                }
+            }
+            displayInput.textContent = currentInput;
+        }
+
+        // 檢查是否為運算符號
+        function isOperator(char) {
+            return ['+', '-', '*', '/'].includes(char);
+        }
+
+        // 處理括號隱式乘法並計算
+        function calculate() {
+            // 處理數字後緊接括號的隱式乘法 (e.g., 8(8) -> 8*(8))
+            let sanitizedInput = currentInput.replace(/(\d+)\(/g, '$1*(');
+            // 處理閉括號後緊接開括號的隱式乘法 (e.g., (8)(8) -> (8)*(8))
+            sanitizedInput = sanitizedInput.replace(/\)\(/g, ')*(');
+            // 處理閉括號後緊接數字的隱式乘法 (e.g., (8)8 -> (8)*8)
+            sanitizedInput = sanitizedInput.replace(/\)(\d+)/g, ')*$1');
+
+            try {
+                let result = eval(sanitizedInput);
+                history = sanitizedInput + ' = ' + result;
+                currentInput = result.toString();
+                displayHistory.textContent = history;
+                displayInput.textContent = currentInput;
+            } catch (e) {
+                displayInput.textContent = '錯誤';
+                history = '';
+            }
+        }
+
+        // 轉換重量
+        function convertWeight() {
+            const value = parseFloat(weightInput1.value);
+            if (isNaN(value)) {
+                weightResult.value = '';
+                return;
+            }
+            const unit1 = weightUnit1.value;
+            const unit2 = weightUnit2.value;
+            const convertedValue = (value / weightRates[unit1]) * weightRates[unit2];
+            weightResult.value = convertedValue.toFixed(4);
+        }
+
+        // 轉換長度
+        function convertLength() {
+            const value = parseFloat(lengthInput1.value);
+            if (isNaN(value)) {
+                lengthResult.value = '';
+                return;
+            }
+            const unit1 = lengthUnit1.value;
+            const unit2 = lengthUnit2.value;
+            const convertedValue = (value / lengthRates[unit1]) * lengthRates[unit2];
+            lengthResult.value = convertedValue.toFixed(4);
+        }
+
+        // 頁面導航
+        function showPage(pageId) {
+            const pages = [calcPage, weightPage, lengthPage, datePage];
+            const navButtons = [navCalc, navWeight, navLength, navDate];
+
+            pages.forEach(page => page.classList.remove('active'));
+            navButtons.forEach(btn => {
+                if(btn) {
+                    btn.classList.remove('text-white', 'bg-blue-500');
+                    btn.classList.add('text-gray-700', 'bg-gray-200');
+                }
+            });
+
+            const currentPage = document.getElementById(pageId);
+            const currentNavBtn = document.getElementById(`nav-${pageId.replace('-page', '')}`);
+
+            if(currentPage) {
+                currentPage.classList.add('active');
+            }
+            if(currentNavBtn) {
+                currentNavBtn.classList.remove('text-gray-700', 'bg-gray-200');
+                currentNavBtn.classList.add('text-white', 'bg-blue-500');
+            }
+        }
+
+        // 計算日期
+        function calculateDate() {
+            const start = new Date(startDateInput.value);
+            const end = new Date(endDateInput.value);
+
+            if (isNaN(start) || isNaN(end)) {
+                dateResultDiv.textContent = '請選擇有效的日期。';
+                return;
+            }
+
+            const diffTime = Math.abs(end - start);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            const startYear = start.getFullYear();
+            const endYear = end.getFullYear();
+            const startMonth = start.getMonth();
+            const endMonth = end.getMonth();
+
+            let diffYears = endYear - startYear;
+            let diffMonths = endMonth - startMonth;
+            
+            if (diffMonths < 0) {
+                diffYears--;
+                diffMonths += 12;
+            }
+            
+            let resultText = '';
+            if (diffYears > 0) resultText += `${diffYears} 年 `;
+            if (diffMonths > 0) resultText += `${diffMonths} 個月 `;
+            resultText += `${diffDays} 天`;
+
+            dateResultDiv.textContent = resultText;
+        }
+
+        // 單位調換功能
+        swapWeightBtn.addEventListener('click', () => {
+            const tempValue = weightUnit1.value;
+            weightUnit1.value = weightUnit2.value;
+            weightUnit2.value = tempValue;
+            convertWeight();
+        });
+
+        swapLengthBtn.addEventListener('click', () => {
+            const tempValue = lengthUnit1.value;
+            lengthUnit1.value = lengthUnit2.value;
+            lengthUnit2.value = tempValue;
+            convertLength();
+        });
+
+        calculateDateBtn.addEventListener('click', calculateDate);
+
+        // 導航事件監聽
+        navCalc.addEventListener('click', () => showPage('calculator-page'));
+        navWeight.addEventListener('click', () => showPage('weight-page'));
+        navLength.addEventListener('click', () => showPage('length-page'));
+        navDate.addEventListener('click', () => showPage('date-page'));
+
+        // 更新日期時間顯示
+        function updateDateTime() {
+            const now = new Date();
+            const date = now.toLocaleDateString('zh-HK', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+            const time = now.toLocaleTimeString('zh-HK', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            datetimeDisplay.textContent = `${date} ${time}`;
+        }
+        
+        // 每秒更新一次時間
+        setInterval(updateDateTime, 1000);
+        
+        // 初始顯示計算機頁面及更新日期時間
+        showPage('calculator-page');
+        updateDateTime();
+    </script>
+</body>
+</html>
