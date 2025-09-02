@@ -218,10 +218,10 @@
                     <label for="length-input1">輸入數值</label>
                     <input type="number" id="length-input1" oninput="convertLength()">
                     <select id="length-unit1" onchange="convertLength()">
-                        <option value="mm">毫米 (mm)</option>
-                        <option value="cm">厘米 (cm)</option>
                         <option value="m">米 (m)</option>
                         <option value="km">公里 (km)</option>
+                        <option value="cm">厘米 (cm)</option>
+                        <option value="mm">毫米 (mm)</option>
                         <option value="inch">吋 (in)</option>
                         <option value="ft">呎 (ft)</option>
                         <option value="mile">英里 (mi)</option>
@@ -234,10 +234,10 @@
                     <label for="length-result">換算結果</label>
                     <input type="number" id="length-result" readonly>
                     <select id="length-unit2" onchange="convertLength()">
+                        <option value="km">公里 (km)</option>
+                        <option value="m">米 (m)</option>
                         <option value="cm">厘米 (cm)</option>
                         <option value="mm">毫米 (mm)</option>
-                        <option value="m">米 (m)</option>
-                        <option value="km">公里 (km)</option>
                         <option value="ft">呎 (ft)</option>
                         <option value="inch">吋 (in)</option>
                         <option value="mile">英里 (mi)</option>
@@ -303,8 +303,16 @@
         const weightRates = {
             'kg': 1, 'g': 1000, 'lb': 2.20462, 'oz': 35.274
         };
+        // FIX: Corrected the length conversion rates to be consistent with the weight conversion logic.
+        // The base unit is now 'meter' (m).
         const lengthRates = {
-            'mm': 1, 'cm': 10, 'm': 1000, 'km': 1000000, 'inch': 25.4, 'ft': 304.8, 'mile': 1609340
+            'm': 1,
+            'mm': 1000,
+            'cm': 100,
+            'km': 0.001,
+            'inch': 39.3701,
+            'ft': 3.28084,
+            'mile': 0.000621371
         };
 
         // 處理計算機按鈕輸入
@@ -381,6 +389,7 @@
             }
             const unit1 = lengthUnit1.value;
             const unit2 = lengthUnit2.value;
+            // The formula is now correct because the lengthRates object has been fixed.
             const convertedValue = (value / lengthRates[unit1]) * lengthRates[unit2];
             lengthResult.value = convertedValue.toFixed(4);
         }
@@ -492,3 +501,4 @@
     </script>
 </body>
 </html>
+
