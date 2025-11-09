@@ -4,7 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>ABCDE 月曆（備註版）</title>
-<!-- --- 修改：移除 hk-holidays library --- -->
+<!-- 
+  v3 - 2025-11-09
+  1.  重寫 JavaScript 嘅 triplet() 函數，以符合用戶最新排序邏輯: 
+      [Anchor(date), Anchor(date-1), Anchor(date-2)]
+  2.  更新 render() 函數，傳遞 dateISO (而非 letter, number) 到 triplet()。
+  3.  更新 helpModal 幫助選單中嘅篩選說明。
+  4.  調整 CSS 嘅 padding, gap, 同 font-size，改善手機顯示。
+-->
 <style>
   :root{
     --bg: #0b1220;
@@ -26,7 +33,9 @@
         background: linear-gradient(180deg, #0a0f19, #0b1220 30%, #0b1220 100%); color:var(--txt); }
   header{ position:sticky; top:0; z-index:5; background: rgba(11,18,32,.75);
           backdrop-filter: blur(10px); border-bottom:1px solid var(--stroke); }
-  .wrap{ max-width:1100px; margin:0 auto; padding:12px; }
+  
+  /* --- CSS 修正：減少 padding --- */
+  .wrap{ max-width:1100px; margin:0 auto; padding:8px; }
   
   .top-controls {
     display: flex;
@@ -47,7 +56,6 @@
     gap: 6px;
     flex-shrink: 0;
   }
-  /* --- 修改：按鈕佈局 --- */
   .button-group {
     display: flex;
     gap: 10px;
@@ -62,7 +70,6 @@
     border: none;
   }
   .btn-help {
-    /* --- 修改：按鈕改為黃色 --- */
     background: var(--today);
     color: var(--bg);
     font-weight: 600;
@@ -93,9 +100,12 @@
     font-weight: 700;
   }
   
-  .grid{ display:grid; grid-template-columns: repeat(7,1fr); gap:6px; margin-top:8px; }
-  .cell{ min-height:120px; background: var(--card); border:1px solid var(--stroke); border-radius:10px; padding:8px;
-         display:flex; flex-direction:column; gap:6px; transition: opacity .2s, border-color .2s; cursor:pointer; }
+  /* --- CSS 修正：減少 gap --- */
+  .grid{ display:grid; grid-template-columns: repeat(7,1fr); gap:4px; margin-top:8px; }
+  
+  /* --- CSS 修正：減少 padding 同 gap --- */
+  .cell{ min-height:120px; background: var(--card); border:1px solid var(--stroke); border-radius:10px; padding:6px;
+         display:flex; flex-direction:column; gap:4px; transition: opacity .2s, border-color .2s; cursor:pointer; }
   .cell.dim{ opacity:.35; }
   
   .cell.filtered-dim { opacity: .35; }
@@ -114,8 +124,17 @@
   }
 
   .trip{ display:flex; flex-direction:column; gap:2px; }
-  .code{ font-weight:800; letter-spacing:.3px; }
-  .A{ color:#3b82f6;} .B{ color:#f59e0b;} .C{ color:#22c55e;} .D{ color:#8b5cf6;} .E{ color:#fb7185;}
+  
+  /* --- CSS 修正：縮小字體, 減少 letter-spacing --- */
+  .code{ font-weight:800; letter-spacing:0.1px; font-size: 13px; }
+  
+  /* 顏色定義 */
+  .A{ color:#3b82f6;} 
+  .B{ color:#f59e0b;} 
+  .C{ color:#22c55e;} 
+  .D{ color:#8b5cf6;} 
+  .E{ color:#fb7185;}
+  
   .notes-input{
     margin-top:auto;
     width:100%;
@@ -169,7 +188,6 @@
     margin-top: 0;
     text-align: left;
   }
-  /* --- 新增：Help Modal 樣式 --- */
   .modal-content ul {
     text-align: left;
     padding-left: 20px;
@@ -232,6 +250,7 @@
     color: var(--txt);
   }
   
+  /* 動畫 */
   @keyframes bounce-in-right {
       0% { transform: translateX(100%); opacity: 0; }
       60% { transform: translateX(-10%); opacity: 1; }
@@ -281,7 +300,6 @@
         <div class="chip" data-on="0" data-letter="D">D</div>
         <div class="chip" data-on="0" data-letter="E">E</div>
       </div>
-      <!-- --- 修改：按鈕 group --- -->
       <div class="button-group">
         <button class="btn btn-help" id="btnHelp">說明</button>
         <button class="btn btn-add-marker" id="btnAddMarker">+ 標記</button>
@@ -299,6 +317,7 @@
   <div class="grid" id="grid"></div>
 </main>
 
+<!-- 彈窗 (提示) -->
 <div class="modal-backdrop" id="customAlert">
   <div class="modal-content">
     <p id="customAlertMsg"></p>
@@ -306,6 +325,7 @@
   </div>
 </div>
 
+<!-- 彈窗 (新增標記) -->
 <div class="modal-backdrop" id="markerModal">
   <div class="modal-content">
     <h3>新增自訂標記</h3>
@@ -337,13 +357,13 @@
   </div>
 </div>
 
-<!-- --- 新增：Help Modal --- -->
+<!-- 彈窗 (幫助說明) -->
 <div class="modal-backdrop" id="helpModal">
   <div class="modal-content">
     <h3>使用說明</h3>
-    <!-- --- 修改：說明文字改為書面語 --- -->
     <ul>
-      <li><b>週期篩選 (A-E)</b>: 點擊 <code>A</code> 至 <code>E</code> 按鈕，日曆將高亮顯示所有包含該字母的工作週期日 (例如：篩選 "D" 將顯示 "D1", "C1", 及 "B1")。</li>
+      <!-- --- 排序邏輯修正：更新此處說明 --- -->
+      <li><b>週期篩選 (A-E)</b>: 點擊 <code>A</code> 至 <code>E</code> 按鈕，日曆將高亮顯示 *當日*、*前一日* 或 *再前一日* 班次包含該字母嘅日子。</li>
       <li><b>自動儲存</b>: 在日期格底部輸入的「備註」，將會自動儲存於您的瀏覽器中，下次開啟時資料將自動載入。</li>
       <li><b>公眾假期</b>: 左側帶有<code>紅色</code>邊框的日期為香港公眾假期，點擊該日期格可查看假期名稱。</li>
       <li><b>自訂標記</b>: 點擊 <code>+ 標記</code> 按鈕，即可選定日期、顏色 (藍/綠) 及輸入說明。已標記的日期將顯示相應顏色邊框，點擊後可查閱該說明。</li>
@@ -357,13 +377,13 @@
 
 <script>
 // ---- 固定規則：今日 2025-11-09 = C6 ----
+// 呢個係計算所有日期嘅基準點
 const LETTERS = ['A','B','C','D','E'];
 const TODAY_ISO = '2025-11-09';
 const ANCHOR_LETTER = 'C';
 const ANCHOR_NUMBER = 6;
 
-// --- 新增：內置假期資料庫 (2024-2026) ---
-// (取代 hk-holidays library)
+// --- 內置假期資料庫 (2024-2026) ---
 const HOLIDAY_DATA = {
     "2024": {
         "2024-01-01": "元旦",
@@ -429,7 +449,7 @@ let dailyNotes = {};
 let customMarkers = {};
 let holidaysCache = new Map(); 
 
-// ---- 儲存/讀取功能 ----
+// ---- 儲存/讀取功能 (LocalStorage) ----
 function saveData() {
     try {
         localStorage.setItem('calendarNotes', JSON.stringify(dailyNotes));
@@ -456,34 +476,68 @@ function loadData() {
     }
 }
 
-// ---- 工具函數 (不變) ----
-function fmtISO(d){
+// ---- 工具函數 ----
+function fmtISO(d){ // 日期物件 轉 ISO字串 (YYYY-MM-DD)
   const y = d.getFullYear();
   const m = (d.getMonth() + 1).toString().padStart(2, '0');
   const day = d.getDate().toString().padStart(2, '0');
   return `${y}-${m}-${day}`;
 }
-function daysBetween(aISO,bISO){ return Math.round((new Date(bISO)-new Date(aISO))/86400000); }
-function mod(a,b){ return ((a % b)+b)%b; }
+function daysBetween(aISO,bISO){ // 計算兩個 ISO 日期之間嘅日數
+  return Math.round((new Date(bISO)-new Date(aISO))/86400000); 
+}
+function mod(a,b){ // 模數運算 (處理負數)
+  return ((a % b)+b)%b; 
+}
 
+// --- 計算主更 (e.g. C6) ---
 function letterNumFor(dateISO){
-  const i0 = LETTERS.indexOf(ANCHOR_LETTER);
-  const n = daysBetween(TODAY_ISO, dateISO);
-  const idx = mod(i0 - n, 5);
-  const wraps = Math.floor((i0 + n)/5);
-  let num = ANCHOR_NUMBER + wraps;
-  num = ((num - 1) % 10 + 10) % 10 + 1;
+  const i0 = LETTERS.indexOf(ANCHOR_LETTER); // 基準字母 'C' 嘅 index (2)
+  const n = daysBetween(TODAY_ISO, dateISO); // 該日與基準日嘅差距
+  
+  // 計算字母 (A-E 循環)
+  const idx = mod(i0 - n, 5); // 根據差距推算字母 index
+  
+  // 計算數字 (1-10 循環)
+  const wraps = Math.floor((i0 + n)/5); // 估算經過咗幾多個5日週期
+  let num = ANCHOR_NUMBER + wraps; // 基準數字 (6) + 週期數
+  num = ((num - 1) % 10 + 10) % 10 + 1; // 確保數字喺 1-10 之間循環
+  
   return {letter: LETTERS[idx], number: num};
 }
-function triplet(letter, number){
-  const i = LETTERS.indexOf(letter);
-  return [`${LETTERS[i]}${number}`,`${LETTERS[(i+1)%5]}${number}`,`${LETTERS[(i+2)%5]}${number}`];
+
+// --- 【排序邏輯修正 - 2025-11-09】 ---
+// 根據用戶最新邏輯: Triplet(date) = [Anchor(date), Anchor(date-1), Anchor(date-2)]
+function triplet(dateISO){
+  const d = new Date(dateISO + 'T00:00:00'); // 確保 local time
+  
+  // 1. Anchor for today
+  const {letter, number} = letterNumFor(dateISO);
+  const t1 = `${letter}${number}`;
+  
+  // 2. Anchor for yesterday
+  d.setDate(d.getDate() - 1);
+  const iso_d1 = fmtISO(d);
+  const {letter: l_d1, number: n_d1} = letterNumFor(iso_d1);
+  const t2 = `${l_d1}${n_d1}`;
+  
+  // 3. Anchor for day before yesterday
+  d.setDate(d.getDate() - 1);
+  const iso_d2 = fmtISO(d);
+  const {letter: l_d2, number: n_d2} = letterNumFor(iso_d2);
+  const t3 = `${l_d2}${n_d2}`;
+  
+  return [t1, t2, t3];
 }
+
+// 計算月曆第一格 (可能係上個月) 嘅日期
 function firstCellDate(y, m){
   const first = new Date(y, m, 1);
-  const startDow = first.getDay();
+  const startDow = first.getDay(); // 0 = Sun, 1 = Mon...
   return new Date(y, m, 1 - startDow);
 }
+
+// 獲取當前啟動嘅篩選 (A-E)
 function currentFilter(){
   const chipElements = document.querySelectorAll('.chip');
   const set = new Set();
@@ -511,7 +565,6 @@ function showMarkerModal(dateISO = '') {
 function closeMarkerModal() {
     document.getElementById('markerModal').classList.remove('show');
 }
-// --- 新增：Help Modal 顯示/隱藏 ---
 function showHelpModal() {
     document.getElementById('helpModal').classList.add('show');
 }
@@ -519,7 +572,7 @@ function closeHelpModal() {
     document.getElementById('helpModal').classList.remove('show');
 }
 
-// --- 新增：複製文字功能 ---
+// --- 複製文字到剪貼簿 ---
 function copyToClipboard(text) {
     const ta = document.createElement('textarea');
     ta.style.position = 'absolute';
@@ -528,6 +581,7 @@ function copyToClipboard(text) {
     document.body.appendChild(ta);
     ta.select();
     try {
+        // 使用舊方法 execCommand 確保喺 iFrame/WebView 嘅兼容性
         document.execCommand('copy');
         showModal('已複製到剪貼簿！');
     } catch (err) {
@@ -537,10 +591,10 @@ function copyToClipboard(text) {
     document.body.removeChild(ta);
 }
 
-// --- 修改：假期計算函數 (用內置資料) ---
+// --- 獲取該年份嘅假期 (使用內置資料) ---
 function getHolidayMapForYear(year) {
     const yearStr = String(year);
-    if (holidaysCache.has(yearStr)) {
+    if (holidaysCache.has(yearStr)) { // 優先由快取讀取
         return holidaysCache.get(yearStr);
     }
     
@@ -550,44 +604,50 @@ function getHolidayMapForYear(year) {
         for (const [iso, name] of Object.entries(HOLIDAY_DATA[yearStr])) {
             holidayMap.set(iso, name);
         }
-        holidaysCache.set(yearStr, holidayMap);
+        holidaysCache.set(yearStr, holidayMap); // 存入快取
         return holidayMap;
     } else {
         // 如果年份超出範圍 (e.g. 2027)
-        return new Map();
+        return new Map(); // 返回空 Map
     }
 }
 
 
-// ---- Kall 核心 Render 函數 (已更新) ----
+// ---- 核心 Render 函數 (繪製月曆) ----
 function render(targetGrid, y, m_idx){
   const title = document.getElementById('title');
-  targetGrid.innerHTML = '';
-  if (isNaN(y) || isNaN(m_idx)) { return; }
+  targetGrid.innerHTML = ''; // 清空舊內容
+  if (isNaN(y) || isNaN(m_idx)) { return; } // 安全檢查
   
+  // 設定標題 (e.g., 2025年 十一月)
   title.textContent = new Date(y, m_idx, 1).toLocaleString('zh-HK',{year:'numeric', month:'long'});
   
-  // --- call 新嘅 holiday function ---
+  // 獲取該年假期
   const yearHolidayMap = getHolidayMapForYear(y);
   
-  const base = firstCellDate(y, m_idx);
-  const filter = currentFilter();
+  const base = firstCellDate(y, m_idx); // 月曆左上角第一格嘅日期
+  const filter = currentFilter(); // 當前 A-E 篩選
   
-  for(let i=0;i<42;i++){
+  for(let i=0;i<42;i++){ // 繪製 42 格 (6行 x 7日)
     const d = new Date(base); d.setDate(base.getDate()+i);
     const iso = fmtISO(d); 
-    const inMonth = d.getMonth()===m_idx;
-    const {letter, number} = letterNumFor(iso);
-    const trip = triplet(letter, number);
+    const inMonth = d.getMonth()===m_idx; // 呢格係咪屬於今個月
     
-    // --- 修改：用新 map 攞 holiday ---
+    // 計算主更 (e.g., C6)
+    const {letter, number} = letterNumFor(iso);
+    
+    // --- 【排序邏輯修正】---
+    // 獲取當日, 前一日, 再前一日嘅 Anchor
+    const trip = triplet(iso); 
+    
     const holiday = yearHolidayMap.get(iso) || ''; 
     const marker = customMarkers[iso];
 
     const cell = document.createElement('div');
-    cell.className = 'cell' + (inMonth ? '' : ' dim');
-    cell.dataset.iso = iso; cell.dataset.letter=letter;
+    cell.className = 'cell' + (inMonth ? '' : ' dim'); //非本月日期變暗
+    cell.dataset.iso = iso; cell.dataset.letter=letter; // 主更字母
     
+    // 處理假期 / 標記 嘅樣式同點擊事件
     if (holiday) {
         cell.classList.add('is-holiday');
         cell.addEventListener('click', () => { showModal(holiday); });
@@ -597,14 +657,18 @@ function render(targetGrid, y, m_idx){
         cell.addEventListener('click', () => { showModal(marker.description); });
     }
     
+    // 處理篩選 (A-E)
     if(filter.size > 0 && inMonth) {
-      const tripLetters = trip.map(code => code[0]);
+      // --- 【排序邏輯修正】---
+      // 檢查 [C6, D6, E6] 嘅第一個字母
+      const tripLetters = trip.map(code => code[0]); // e.g., [C, D, E]
       const hasMatch = tripLetters.some(l => filter.has(l));
       if (!hasMatch) {
-        cell.classList.add('filtered-dim');
+        cell.classList.add('filtered-dim'); // 如果冇中，成格變暗
       }
     }
 
+    // 顯示日期數字
     const head = document.createElement('div'); head.className='dhead';
     const num = document.createElement('div'); num.className='dnum' + (iso === TODAY_ISO ? ' today' : '');
     num.textContent = d.getDate();
@@ -612,60 +676,77 @@ function render(targetGrid, y, m_idx){
     head.appendChild(document.createElement('div'));
     cell.appendChild(head);
 
+    // 如果係本月日期，先顯示班次同備註
     if(inMonth){
       const tp=document.createElement('div'); tp.className='trip';
-      trip.forEach(code=>{ const div=document.createElement('div'); div.className='code '+code[0]; div.textContent=code; tp.appendChild(div); });
+      
+      // --- 【排序邏輯修正】---
+      // 顯示三個班次，並上色
+      trip.forEach(code=>{ 
+        const div=document.createElement('div'); 
+        div.className='code';
+        
+        // 提取第一個字母用嚟上色 (e.g., 'C6' -> 'C', 'D6' -> 'D')
+        const letterForColor = code[0];
+        div.classList.add(letterForColor); // 用 CSS class (.A, .B, .C...) 上色
+        
+        div.textContent=code; 
+        tp.appendChild(div); 
+      });
       cell.appendChild(tp);
       
+      // 備註 input
       const notes = document.createElement('input');
       notes.type = 'text';
       notes.className = 'notes-input';
       notes.placeholder = '加備註...';
       notes.value = dailyNotes[iso] || '';
-      notes.addEventListener('input', (e) => {
+      notes.addEventListener('input', (e) => { // 自動儲存
         dailyNotes[iso] = e.target.value.trim();
-        if (dailyNotes[iso] === '') delete dailyNotes[iso];
+        if (dailyNotes[iso] === '') delete dailyNotes[iso]; // 冇內容就刪咗佢
         saveData();
       });
-      notes.addEventListener('click', (e) => { e.stopPropagation(); });
+      notes.addEventListener('click', (e) => { e.stopPropagation(); }); // 避免點 input = 點成格
       cell.appendChild(notes);
     }
     targetGrid.appendChild(cell);
   }
 }
 
-// --- collectRows 函數 (不變) ---
+// --- 收集數據 (用於輸出) ---
 function collectRows(isoDates){
   const rows = [];
   for(const iso of isoDates){
-    const {letter, number} = letterNumFor(iso);
-    const [t1,t2,t3] = triplet(letter, number);
+    // const {letter, number} = letterNumFor(iso); // 唔再需要
+    const trip = triplet(iso); // 獲取 [C6, D6, E6]
     rows.push({
       iso,
-      triplet:[t1,t2,t3],
+      triplet: trip, // 儲存所有三個班次
       note: dailyNotes[iso] || ''
     });
   }
   return rows;
 }
 
-// --- exportCSV 函數 (不變) ---
+// --- 輸出 CSV 功能 ---
 function exportCSV(rows){
   const header = ['日期', '週期', '備註'];
   const lines = [header.join(',')];
   for(const r of rows){
+    // CSV 嘅「週期」欄會顯示所有3個班次
     const cells = [ r.iso, r.triplet.join(' '), r.note || '' ]
-      .map(v => String(v).replaceAll('"','""'));
-    lines.push(cells.map(v => /[",\n]/.test(v) ? `"${v}"` : v).join(','));
+      .map(v => String(v).replaceAll('"','""')); // 處理 "
+    lines.push(cells.map(v => /[",\n]/.test(v) ? `"${v}"` : v).join(',')); // 處理 , 同 換行
   }
   const blob = new Blob([lines.join('\n')], {type:'text/csv;charset=utf-8;'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='calendar_notes_export.csv'; document.body.appendChild(a); a.click(); a.remove();
 }
 
-// ---- 主要執行：等 DOM Ready (已更新) ----
+// ---- 主要執行：等 DOM Ready ----
 document.addEventListener('DOMContentLoaded', () => {
-  loadData();
+  loadData(); // 載入已儲存嘅備註同標記
   
+  // 獲取所有重要 DOM 元素
   const mainWrap = document.getElementById('mainWrap');
   const monthPick = document.getElementById('monthPick');
   const prevM = document.getElementById('prevM');
@@ -680,39 +761,42 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnCancelMarker = document.getElementById('btnCancelMarker');
   const btnSaveMarker = document.getElementById('btnSaveMarker');
   
-  // --- 新增：Help & Text Export 元素 ---
   const btnHelp = document.getElementById('btnHelp');
   const helpModal = document.getElementById('helpModal');
   const btnCloseHelp = document.getElementById('btnCloseHelp');
   const btnExportText = document.getElementById('btnExportText');
 
   let currentGrid = document.getElementById('grid');
-  let isAnimating = false;
+  let isAnimating = false; // 防止動畫重疊
   
   mainWrap.style.position = 'relative';
   mainWrap.style.overflowX = 'hidden';
 
+  // 確保所有嘢都存在
   if (!currentGrid || !monthPick || !prevM || !nextM || !btnExport || !btnAddMarker || !btnHelp || !btnExportText) {
       console.error('Initialization failed: Missing critical DOM elements.');
       return;
   }
 
+  // 設定初始月份 (基準日所在月份)
   const t = new Date(TODAY_ISO+'T00:00:00');
   const startYear = t.getFullYear();
   const startMonthIndex = t.getMonth();
   monthPick.value = `${startYear}-${(startMonthIndex + 1).toString().padStart(2, '0')}`;
   
+  // 高亮星期欄嘅「今日」
   const todayDow = t.getDay();
   const weekbarDivs = document.querySelectorAll('#weekbar div');
   if (weekbarDivs[todayDow]) {
       weekbarDivs[todayDow].classList.add('is-today');
   }
 
-  // --- 切換月份核心函數 (已更新：修正動畫) ---
-  function changeMonth(direction) {
+  // --- 切換月份核心函數 (帶動畫) ---
+  function changeMonth(direction) { // direction: -1 = 上, 1 = 下
       if (isAnimating) return;
       isAnimating = true;
 
+      // 計算新日期
       const [y, m] = monthPick.value.split('-').map(Number);
       const d = new Date(y, m - 1, 1);
       d.setMonth(d.getMonth() + direction);
@@ -722,72 +806,81 @@ document.addEventListener('DOMContentLoaded', () => {
       
       monthPick.value = `${newY}-${(newM_idx + 1).toString().padStart(2, '0')}`;
 
+      // 建立新 grid
       const newGrid = document.createElement('div');
       newGrid.className = 'grid'; newGrid.id = 'grid';
 
-      render(newGrid, newY, newM_idx); 
+      render(newGrid, newY, newM_idx); // 繪製新月份
       
       const oldGrid = currentGrid;
-      oldGrid.id = 'grid-old';
+      oldGrid.id = 'grid-old'; // 標記舊 grid
       
-      mainWrap.appendChild(newGrid);
+      mainWrap.appendChild(newGrid); // 將新 grid 加入 DOM
       currentGrid = newGrid;
       
-      // --- 修改：使用 animationend 確保動畫順暢 ---
+      // 監聽動畫結束事件
       let animationEnded = false;
       const onAnimEnd = () => {
           if (animationEnded) return;
           animationEnded = true;
           if (document.body.contains(oldGrid)) {
-            oldGrid.remove();
+            oldGrid.remove(); // 移除舊 grid
           }
           isAnimating = false;
       };
       
       oldGrid.addEventListener('animationend', onAnimEnd);
-      setTimeout(onAnimEnd, 450); // Fallback
+      setTimeout(onAnimEnd, 450); // Fallback，確保動畫一定會完
 
+      // 觸發動畫
       requestAnimationFrame(() => {
-          if (direction > 0) { // Next
+          if (direction > 0) { // 下個月
               oldGrid.classList.add('animate-out-left');
               newGrid.classList.add('animate-in-right');
-          } else { // Prev
+          } else { // 上個月
               oldGrid.classList.add('animate-out-right');
               newGrid.classList.add('animate-in-left');
           }
       });
   }
   
-  // --- 綁定事件 (已更新) ---
+  // --- 綁定事件 ---
+  
+  // 月份導航
   prevM.addEventListener('click', () => changeMonth(-1));
   nextM.addEventListener('click', () => changeMonth(1));
   
+  // 月份選擇器
   monthPick.addEventListener('change', () => {
       const [y, m] = monthPick.value.split('-').map(Number);
       render(currentGrid, y, m - 1);
   });
 
+  // A-E 篩選
   chips.forEach(c=>c.addEventListener('click', ()=>{
-    c.dataset.on = c.dataset.on==='1' ? '0' : '1';
+    c.dataset.on = c.dataset.on==='1' ? '0' : '1'; // 切換狀態
     const [y, m] = monthPick.value.split('-').map(Number);
-    render(currentGrid, y, m - 1);
+    render(currentGrid, y, m - 1); // 重新 render
   }));
 
+  // 輸出 CSV
   btnExport.addEventListener('click', ()=>{
     const isoDatesWithNotes = Object.keys(dailyNotes).filter(iso => dailyNotes[iso] && dailyNotes[iso].trim() !== '');
     if(isoDatesWithNotes.length === 0){ 
       showModal('請先輸入至少一項備註。');
       return; 
     }
-    const rows = collectRows(isoDatesWithNotes.sort());
+    const rows = collectRows(isoDatesWithNotes.sort()); // 收集數據
     exportCSV(rows);
   });
 
+  // 關閉提示 Modal
   modalCloseBtn.addEventListener('click', closeModal);
   modalBackdrop.addEventListener('click', (e) => {
     if (e.target === modalBackdrop) closeModal();
   });
   
+  // 新增標記 Modal
   btnAddMarker.addEventListener('click', () => { showMarkerModal(); });
   btnCancelMarker.addEventListener('click', closeMarkerModal);
   markerModal.addEventListener('click', (e) => {
@@ -807,24 +900,27 @@ document.addEventListener('DOMContentLoaded', () => {
       saveData();
       closeMarkerModal();
       
+      // 重新 render 顯示新標記
       const [y, m] = monthPick.value.split('-').map(Number);
       render(currentGrid, y, m - 1);
   });
   
-  // --- 新增：Help & Text Export 事件 ---
+  // 幫助 Modal
   btnHelp.addEventListener('click', showHelpModal);
   btnCloseHelp.addEventListener('click', closeHelpModal);
   helpModal.addEventListener('click', (e) => {
     if (e.target === helpModal) closeHelpModal();
   });
   
+  // 輸出文字
   btnExportText.addEventListener('click', () => {
+      // 收集所有有備註 或 有標記 嘅日期
       const allIsoDates = new Set([
           ...Object.keys(dailyNotes).filter(iso => dailyNotes[iso] && dailyNotes[iso].trim() !== ''), 
           ...Object.keys(customMarkers)
       ]);
       
-      const sortedDates = Array.from(allIsoDates).sort();
+      const sortedDates = Array.from(allIsoDates).sort(); // 排序
       
       if (sortedDates.length === 0) {
           showModal('沒有任何備註或標記可供複製。');
@@ -839,9 +935,8 @@ document.addEventListener('DOMContentLoaded', () => {
           const note = dailyNotes[iso];
           const marker = customMarkers[iso];
           
-          // --- 修改：動態攞 holiday ---
           const year = d.getFullYear();
-          const holidayMap = getHolidayMapForYear(year); // 會用 cache
+          const holidayMap = getHolidayMapForYear(year); // 獲取假期
           const holiday = holidayMap.get(iso);
 
           output += `${iso} (${weekday})\n`;
@@ -856,7 +951,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (note && note.trim() !== '') {
               output += `  - 備註: ${note}\n`;
           }
-          output += '\n'; // Add a blank line for spacing
+          output += '\n'; // 每個日期後加空行
       }
       
       output += "--------------------";
@@ -865,12 +960,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   // --- 初始 Render ---
-  // (唔再需要等 library, 直接 render)
+  // 載入頁面時，第一次繪製月曆
   render(currentGrid, startYear, startMonthIndex);
 });
 </script>
 </body>
 </html>
-
-
-
