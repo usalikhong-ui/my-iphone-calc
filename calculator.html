@@ -5,12 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>ABCDE 月曆（備註版）</title>
 <!-- 
-  v3 - 2025-11-09
-  1.  重寫 JavaScript 嘅 triplet() 函數，以符合用戶最新排序邏輯: 
-      [Anchor(date), Anchor(date-1), Anchor(date-2)]
-  2.  更新 render() 函數，傳遞 dateISO (而非 letter, number) 到 triplet()。
-  3.  更新 helpModal 幫助選單中嘅篩選說明。
-  4.  調整 CSS 嘅 padding, gap, 同 font-size，改善手機顯示。
+  v4.2 - 2025-11-09
+  1.  按鈕改名: "五隊制" -> "12小時工作", "三隊制" -> "24小時工作".
+  2.  "12小時工作" 預設開啟, "24小時工作" 預設關閉.
+  3.  實現全新 "24小時工作" (三隊制) 排序邏輯 (C>A>B, C>D>A>B).
+  4.  調整 CSS，縮細字體同間距，優化手機顯示.
 -->
 <style>
   :root{
@@ -34,7 +33,6 @@
   header{ position:sticky; top:0; z-index:5; background: rgba(11,18,32,.75);
           backdrop-filter: blur(10px); border-bottom:1px solid var(--stroke); }
   
-  /* --- CSS 修正：減少 padding --- */
   .wrap{ max-width:1100px; margin:0 auto; padding:8px; }
   
   .top-controls {
@@ -61,6 +59,8 @@
     gap: 10px;
     margin-left: auto; /* 將所有按鈕推到最右 */
     flex-shrink: 0;
+    flex-wrap: wrap; /* 換行 */
+    justify-content: flex-end;
   }
   .btn-add-marker {
     padding: 6px 10px;
@@ -89,9 +89,53 @@
   .title{ font-weight:700; letter-spacing:.5px; padding:6px 10px; border-radius:10px; background:var(--panel); border:1px solid var(--stroke); }
   input[type="month"]{ background:transparent; color:var(--txt); border:1px dashed var(--stroke); border-radius:10px; padding:8px 10px; outline:none; flex-shrink: 0; }
   .chip{ padding:6px 12px; border-radius:999px; background: var(--panel); border:1px solid var(--stroke); cursor:pointer; user-select:none; }
-  .chip[data-on="1"]{ outline:2px solid var(--accent); }
+  
+  /* --- 修改：切換按鈕樣式 --- */
+  .btn.chip { user-select: none; }
+
+  /* A-E 篩選按鈕 (喺 .chip-group 入面) */
+  .chip-group .chip[data-on="1"] { 
+    outline: 2px solid var(--accent); 
+  }
+  
+  /* 12hr/24hr 按鈕特定顏色 */
+  #btnToggle12hr,
+  #btnToggle24hr {
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s, opacity 0.2s;
+    font-weight: 600;
+    color: #ffffff; /* 文字統一白色 */
+    outline: none; /* 移除點擊時嘅 blue outline */
+    border: 1px solid var(--stroke);
+  }
+
+  #btnToggle12hr[data-on="1"],
+  #btnToggle24hr[data-on="1"] {
+    /* ON State (Green) */
+    background-color: #22c55e;
+    border-color: #22c55e;
+    opacity: 1;
+  }
+  
+  #btnToggle12hr[data-on="0"],
+  #btnToggle24hr[data-on="0"] {
+    /* OFF State (Red) */
+    background-color: #e11d48;
+    border-color: #e11d48;
+    opacity: 0.85; /* 稍為調暗 */
+  }
+  
+  /* 移除呢兩個掣嘅 hover 預設 outline */
+  #btnToggle12hr:hover,
+  #btnToggle24hr:hover {
+    opacity: 1; /* 確保 hover 時 100% */
+    outline: none; 
+  }
+  
   .btn{ padding:8px 12px; border-radius:10px; border:1px solid var(--stroke); background:var(--panel); color:var(--txt); cursor:pointer; }
-  .btn:hover{ outline:2px solid var(--accent); }
+  /* 確保其他 .btn 嘅 hover 正常 */
+  .btn:hover:not(#btnToggle12hr):not(#btnToggle24hr) { 
+    outline:2px solid var(--accent); 
+  }
   
   .weekbar{ display:grid; grid-template-columns: repeat(7,1fr); background: var(--weekbar); border-radius:10px; overflow:hidden; margin-top:10px; }
   .weekbar div{ text-align:center; padding:8px 0; font-size:12px; color:#e7eaf1; transition: color 0.2s; }
@@ -100,19 +144,24 @@
     font-weight: 700;
   }
   
-  /* --- CSS 修正：減少 gap --- */
-  .grid{ display:grid; grid-template-columns: repeat(7,1fr); gap:4px; margin-top:8px; }
+  /* --- 畫面優化：縮細 grid/cell 間距 --- */
+  .grid{ display:grid; grid-template-columns: repeat(7,1fr); gap:3px; margin-top:8px; }
   
-  /* --- CSS 修正：減少 padding 同 gap --- */
-  .cell{ min-height:120px; background: var(--card); border:1px solid var(--stroke); border-radius:10px; padding:6px;
-         display:flex; flex-direction:column; gap:4px; transition: opacity .2s, border-color .2s; cursor:pointer; }
+  .cell{ 
+    min-height: 110px; /* 縮細高度 */
+    background: var(--card); border:1px solid var(--stroke); border-radius:10px; 
+    padding: 5px; /* 縮細 padding */
+    display:flex; flex-direction:column; 
+    gap: 3px; /* 縮細內部間距 */
+    transition: opacity .2s, border-color .2s; cursor:pointer; 
+  }
   .cell.dim{ opacity:.35; }
   
   .cell.filtered-dim { opacity: .35; }
   
   .dhead{ display:flex; align-items:center; justify-content:space-between; }
-  .dnum{ font-weight:700; }
-  .dnum.today{ outline:2px solid var(--today); border-radius:8px; padding:2px 6px; }
+  .dnum{ font-weight:700; font-size: 15px; } /* 縮細日期字體 */
+  .dnum.today{ outline:2px solid var(--today); border-radius:8px; padding:1px 5px; } /* 縮細 today padding */
 
   .cell.is-holiday {
     border-left: 3px solid var(--holiday);
@@ -123,10 +172,24 @@
     padding-left: 6px;
   }
 
-  .trip{ display:flex; flex-direction:column; gap:2px; }
+  /* --- 三隊/五隊 樣式 --- */
+  .trip-five, .trip-three {
+    display: none; /* 預設隱藏 */
+    flex-direction: column;
+    gap: 1px; /* 縮細班次間距 */
+  }
+  /* --- CSS class 控制顯示 --- */
+  .grid.show-five-team .trip-five {
+    display: flex;
+  }
+  .grid.show-three-team .trip-three {
+    display: flex;
+    border-top: 1px dashed var(--stroke); /* 加分隔線 */
+    margin-top: 4px;
+    padding-top: 4px;
+  }
   
-  /* --- CSS 修正：縮小字體, 減少 letter-spacing --- */
-  .code{ font-weight:800; letter-spacing:0.1px; font-size: 13px; }
+  .code{ font-weight:800; letter-spacing:0.1px; font-size: 12px; } /* 縮細班次字體 */
   
   /* 顏色定義 */
   .A{ color:#3b82f6;} 
@@ -301,6 +364,10 @@
         <div class="chip" data-on="0" data-letter="E">E</div>
       </div>
       <div class="button-group">
+        <!-- --- 按鈕 (ID/文字/預設值 已更新) --- -->
+        <button class="btn chip" id="btnToggle12hr" data-on="1">12小時工作</button>
+        <button class="btn chip" id="btnToggle24hr" data-on="0">24小時工作</button>
+        
         <button class="btn btn-help" id="btnHelp">說明</button>
         <button class="btn btn-add-marker" id="btnAddMarker">+ 標記</button>
         <button class="btn" id="btnExportText">輸出文字</button>
@@ -357,18 +424,34 @@
   </div>
 </div>
 
+<!-- --- 彈窗 (顯示/刪除標記) --- -->
+<div class="modal-backdrop" id="markerInfoModal">
+  <div class="modal-content">
+    <h3 style="display: flex; align-items: center; gap: 8px;">
+      <span id="markerInfoColor" class="color-dot"></span>
+      標記詳情
+    </h3>
+    <p id="markerInfoDate" style="font-size: 14px; color: var(--muted); text-align: left; margin: 0;"></p>
+    <p id="markerInfoDesc" style="font-size: 16px; text-align: left; margin: 10px 0 20px;"></p>
+    <div class="modal-actions">
+      <button class="secondary" id="btnCloseMarkerInfo">關閉</button>
+      <button id="btnDeleteMarker" style="background: var(--holiday); color: var(--txt);">刪除</button>
+    </div>
+  </div>
+</div>
+
 <!-- 彈窗 (幫助說明) -->
 <div class="modal-backdrop" id="helpModal">
   <div class="modal-content">
     <h3>使用說明</h3>
+    <!-- --- 說明文字 (已更新) --- -->
     <ul>
-      <!-- --- 排序邏輯修正：更新此處說明 --- -->
-      <li><b>週期篩選 (A-E)</b>: 點擊 <code>A</code> 至 <code>E</code> 按鈕，日曆將高亮顯示 *當日*、*前一日* 或 *再前一日* 班次包含該字母嘅日子。</li>
+      <li><b>週期篩選 (A-E)</b>: 點擊 <code>A</code> 至 <code>E</code> 按鈕，日曆將高亮顯示 *所有* 班次 (不論 12/24 小時) 包含該字母嘅日子。</li>
+      <li><b>12小時 / 24小時</b>: 點擊 <code>12小時工作</code> 或 <code>24小時工作</code> 按鈕，可切換顯示對應嘅班次排序。</li>
       <li><b>自動儲存</b>: 在日期格底部輸入的「備註」，將會自動儲存於您的瀏覽器中，下次開啟時資料將自動載入。</li>
       <li><b>公眾假期</b>: 左側帶有<code>紅色</code>邊框的日期為香港公眾假期，點擊該日期格可查看假期名稱。</li>
-      <li><b>自訂標記</b>: 點擊 <code>+ 標記</code> 按鈕，即可選定日期、顏色 (藍/綠) 及輸入說明。已標記的日期將顯示相應顏色邊框，點擊後可查閱該說明。</li>
-      <li><b>輸出文字</b>: 點擊 <code>輸出文字</code> 按鈕，系統會將 *所有* 備註及標記整合為純文字格式 (適合即時通訊軟件)，並自動複製到剪貼簿。</li>
-      <li><b>輸出 CSV</b>: 點擊 <code>輸出 CSV</code> 按鈕，系統將導出一個 .csv 檔案，此檔案僅包含 *已填寫備註* 的日期，方便使用 Excel 或 Google Sheets 進行後續處理。</li>
+      <li><b>自訂標記</b>: 點擊 <code>+ 標記</code> 按鈕可新增標記。點擊已標記嘅日期格，可以查閱說明或 <code>刪除</code> 該標記。</li>
+      <li><b>輸出文字 / CSV</b>: 點擊輸出按鈕，系統將導出 *所有* 班次資料 (包括 12/24 小時) 及備註，無論當前是否隱藏。</li>
     </ul>
     <button id="btnCloseHelp">明白</button>
   </div>
@@ -377,70 +460,26 @@
 
 <script>
 // ---- 固定規則：今日 2025-11-09 = C6 ----
-// 呢個係計算所有日期嘅基準點
 const LETTERS = ['A','B','C','D','E'];
 const TODAY_ISO = '2025-11-09';
 const ANCHOR_LETTER = 'C';
 const ANCHOR_NUMBER = 6;
 
+// --- "24小時工作" (三隊制) 排序邏輯 ---
+const ANCHOR_3_TEAM = '2025-11-09';
+const CYCLE_24 = ['C(24)', 'A(24)', 'B(24)']; // 3-day cycle
+const CYCLE_4D = ['C(2D)', 'D(2D)', 'A(2D)', 'B(2D)']; // 4-day cycle
+
 // --- 內置假期資料庫 (2024-2026) ---
 const HOLIDAY_DATA = {
     "2024": {
-        "2024-01-01": "元旦",
-        "2024-02-10": "農曆年初一",
-        "2024-02-12": "農曆年初三",
-        "2024-02-13": "農曆年初四",
-        "2024-03-29": "耶穌受難節",
-        "2024-03-30": "耶穌受難節翌日",
-        "2024-04-01": "復活節星期一",
-        "2024-04-04": "清明節",
-        "2024-05-01": "勞動節",
-        "2024-05-15": "佛誕",
-        "2024-06-10": "端午節",
-        "2024-07-01": "香港特別行政區成立紀念日",
-        "2024-09-18": "中秋節翌日",
-        "2024-10-01": "國慶日",
-        "2024-10-11": "重陽節",
-        "2024-12-25": "聖誕節",
-        "2024-12-26": "聖誕節後第一個周日"
+        "2024-01-01": "元旦", "2024-02-10": "農曆年初一", "2024-02-12": "農曆年初三", "2024-02-13": "農曆年初四", "2024-03-29": "耶穌受難節", "2024-03-30": "耶穌受難節翌日", "2024-04-01": "復活節星期一", "2024-04-04": "清明節", "2024-05-01": "勞動節", "2024-05-15": "佛誕", "2024-06-10": "端午節", "2024-07-01": "香港特別行政區成立紀念日", "2024-09-18": "中秋節翌日", "2024-10-01": "國慶日", "2024-10-11": "重陽節", "2024-12-25": "聖誕節", "2024-12-26": "聖誕節後第一個周日"
     },
     "2025": {
-        "2025-01-01": "元旦",
-        "2025-01-29": "農曆年初一",
-        "2025-01-30": "農曆年初二",
-        "2025-01-31": "農曆年初三",
-        "2025-04-18": "耶穌受難節",
-        "2025-04-19": "耶穌受難節翌日",
-        "2025-04-21": "復活節星期一",
-        "2025-04-04": "清明節",
-        "2025-05-01": "勞動節",
-        "2025-05-05": "佛誕",
-        "2025-05-31": "端午節",
-        "2025-07-01": "香港特別行政區成立紀念日",
-        "2025-10-01": "國慶日",
-        "2025-10-07": "中秋節翌日",
-        "2025-10-30": "重陽節",
-        "2025-12-25": "聖誕節",
-        "2025-12-26": "聖誕節後第一個周日"
+        "2025-01-01": "元旦", "2025-01-29": "農曆年初一", "2025-01-30": "農曆年初二", "2025-01-31": "農曆年初三", "2025-04-18": "耶穌受難節", "2025-04-19": "耶穌受難節翌日", "2025-04-21": "復活節星期一", "2025-04-04": "清明節", "2025-05-01": "勞動節", "2025-05-05": "佛誕", "2025-05-31": "端午節", "2025-07-01": "香港特別行政區成立紀念日", "2025-10-01": "國慶日", "2025-10-07": "中秋節翌日", "2025-10-30": "重陽節", "2025-12-25": "聖誕節", "2025-12-26": "聖誕節後第一個周日"
     },
     "2026": {
-        "2026-01-01": "元旦",
-        "2026-02-17": "農曆年初一",
-        "2026-02-18": "農曆年初二",
-        "2026-02-19": "農曆年初三",
-        "2026-04-03": "耶穌受難節",
-        "2026-04-04": "耶穌受難節翌日",
-        "2026-04-06": "復活節星期一",
-        "2026-04-04": "清明節", // 清明節與耶穌受難節翌日重疊
-        "2026-05-01": "勞動節",
-        "2026-05-25": "佛誕",
-        "2026-06-19": "端午節",
-        "2026-07-01": "香港特別行政區成立紀念日",
-        "2026-09-26": "中秋節翌日",
-        "2026-10-01": "國慶日",
-        "2026-10-02": "國慶日翌日",
-        "2026-10-19": "重陽節",
-        "2026-12-25": "聖誕節"
+        "2026-01-01": "元旦", "2026-02-17": "農曆年初一", "2026-02-18": "農曆年初二", "2026-02-19": "農曆年初三", "2026-04-03": "耶穌受難節", "2026-04-04": "耶穌受難節翌日", "2026-04-06": "復活節星期一", "2026-04-04": "清明節", "2026-05-01": "勞動節", "2026-05-25": "佛誕", "2026-06-19": "端午節", "2026-07-01": "香港特別行政區成立紀念日", "2026-09-26": "中秋節翌日", "2026-10-01": "國慶日", "2026-10-02": "國慶日翌日", "2026-10-19": "重陽節", "2026-12-25": "聖誕節"
     }
 };
 
@@ -448,6 +487,11 @@ const HOLIDAY_DATA = {
 let dailyNotes = {}; 
 let customMarkers = {};
 let holidaysCache = new Map(); 
+
+// --- Global 顯示狀態 (已更新預設值) ---
+let showFiveTeam = true;  // 12小時工作 (預設 ON)
+let showThreeTeam = false; // 24小時工作 (預設 OFF)
+let currentMarkerISO = null; // 用於追蹤要刪除嘅標記
 
 // ---- 儲存/讀取功能 (LocalStorage) ----
 function saveData() {
@@ -463,65 +507,47 @@ function loadData() {
     const notes = localStorage.getItem('calendarNotes');
     const markers = localStorage.getItem('calendarMarkers');
     try {
-      if (notes) {
-          dailyNotes = JSON.parse(notes) || {};
-      }
-      if (markers) {
-          customMarkers = JSON.parse(markers) || {};
-      }
+      if (notes) { dailyNotes = JSON.parse(notes) || {}; }
+      if (markers) { customMarkers = JSON.parse(markers) || {}; }
     } catch (e) {
       console.error('Failed to parse saved data', e);
-      dailyNotes = {};
-      customMarkers = {};
+      dailyNotes = {}; customMarkers = {};
     }
 }
 
 // ---- 工具函數 ----
-function fmtISO(d){ // 日期物件 轉 ISO字串 (YYYY-MM-DD)
+function fmtISO(d){
   const y = d.getFullYear();
   const m = (d.getMonth() + 1).toString().padStart(2, '0');
   const day = d.getDate().toString().padStart(2, '0');
   return `${y}-${m}-${day}`;
 }
-function daysBetween(aISO,bISO){ // 計算兩個 ISO 日期之間嘅日數
-  return Math.round((new Date(bISO)-new Date(aISO))/86400000); 
-}
-function mod(a,b){ // 模數運算 (處理負數)
-  return ((a % b)+b)%b; 
-}
+function daysBetween(aISO,bISO){ return Math.round((new Date(bISO)-new Date(aISO))/86400000); }
+function mod(a,b){ return ((a % b)+b)%b; }
 
-// --- 計算主更 (e.g. C6) ---
+// --- 計算主更 "12小時" (e.g. C6) ---
 function letterNumFor(dateISO){
-  const i0 = LETTERS.indexOf(ANCHOR_LETTER); // 基準字母 'C' 嘅 index (2)
-  const n = daysBetween(TODAY_ISO, dateISO); // 該日與基準日嘅差距
-  
-  // 計算字母 (A-E 循環)
-  const idx = mod(i0 - n, 5); // 根據差距推算字母 index
-  
-  // 計算數字 (1-10 循環)
-  const wraps = Math.floor((i0 + n)/5); // 估算經過咗幾多個5日週期
-  let num = ANCHOR_NUMBER + wraps; // 基準數字 (6) + 週期數
-  num = ((num - 1) % 10 + 10) % 10 + 1; // 確保數字喺 1-10 之間循環
-  
+  const i0 = LETTERS.indexOf(ANCHOR_LETTER);
+  const n = daysBetween(TODAY_ISO, dateISO);
+  const idx = mod(i0 - n, 5);
+  const wraps = Math.floor((i0 + n)/5);
+  let num = ANCHOR_NUMBER + wraps;
+  num = ((num - 1) % 10 + 10) % 10 + 1;
   return {letter: LETTERS[idx], number: num};
 }
 
-// --- 【排序邏輯修正 - 2025-11-09】 ---
-// 根據用戶最新邏輯: Triplet(date) = [Anchor(date), Anchor(date-1), Anchor(date-2)]
+// --- "12小時" 排序邏輯 [Anchor(date), Anchor(date-1), Anchor(date-2)] ---
 function triplet(dateISO){
-  const d = new Date(dateISO + 'T00:00:00'); // 確保 local time
+  const d = new Date(dateISO + 'T00:00:00');
   
-  // 1. Anchor for today
   const {letter, number} = letterNumFor(dateISO);
   const t1 = `${letter}${number}`;
   
-  // 2. Anchor for yesterday
   d.setDate(d.getDate() - 1);
   const iso_d1 = fmtISO(d);
   const {letter: l_d1, number: n_d1} = letterNumFor(iso_d1);
   const t2 = `${l_d1}${n_d1}`;
   
-  // 3. Anchor for day before yesterday
   d.setDate(d.getDate() - 1);
   const iso_d2 = fmtISO(d);
   const {letter: l_d2, number: n_d2} = letterNumFor(iso_d2);
@@ -530,16 +556,28 @@ function triplet(dateISO){
   return [t1, t2, t3];
 }
 
+// --- "24小時" (三隊制) 排序邏輯 (已更新) ---
+function tripletThreeTeam(dateISO) {
+  const n = daysBetween(ANCHOR_3_TEAM, dateISO);
+  
+  const shift1 = CYCLE_24[mod(n, 3)];
+  const shift2 = CYCLE_4D[mod(n, 4)];
+  const shift3 = CYCLE_4D[mod(n - 1, 4)];
+  
+  return [shift1, shift2, shift3];
+}
+
+
 // 計算月曆第一格 (可能係上個月) 嘅日期
 function firstCellDate(y, m){
   const first = new Date(y, m, 1);
-  const startDow = first.getDay(); // 0 = Sun, 1 = Mon...
+  const startDow = first.getDay();
   return new Date(y, m, 1 - startDow);
 }
 
 // 獲取當前啟動嘅篩選 (A-E)
 function currentFilter(){
-  const chipElements = document.querySelectorAll('.chip');
+  const chipElements = document.querySelectorAll('.chip-group .chip'); // 只 target A-E
   const set = new Set();
   for(const c of chipElements){ if(c.dataset.on==='1') set.add(c.dataset.letter); }
   return set;
@@ -572,6 +610,21 @@ function closeHelpModal() {
     document.getElementById('helpModal').classList.remove('show');
 }
 
+// --- 顯示/刪除 標記 Modal ---
+function showMarkerInfoModal(iso, marker) {
+    currentMarkerISO = iso; // 儲存 iso 俾刪除掣用
+    const modal = document.getElementById('markerInfoModal');
+    document.getElementById('markerInfoDesc').textContent = marker.description;
+    document.getElementById('markerInfoColor').style.background = `var(--marker-${marker.color})`;
+    document.getElementById('markerInfoDate').textContent = iso;
+    modal.classList.add('show');
+}
+function closeMarkerInfoModal() {
+    currentMarkerISO = null;
+    document.getElementById('markerInfoModal').classList.remove('show');
+}
+
+
 // --- 複製文字到剪貼簿 ---
 function copyToClipboard(text) {
     const ta = document.createElement('textarea');
@@ -581,7 +634,6 @@ function copyToClipboard(text) {
     document.body.appendChild(ta);
     ta.select();
     try {
-        // 使用舊方法 execCommand 確保喺 iFrame/WebView 嘅兼容性
         document.execCommand('copy');
         showModal('已複製到剪貼簿！');
     } catch (err) {
@@ -594,21 +646,15 @@ function copyToClipboard(text) {
 // --- 獲取該年份嘅假期 (使用內置資料) ---
 function getHolidayMapForYear(year) {
     const yearStr = String(year);
-    if (holidaysCache.has(yearStr)) { // 優先由快取讀取
+    if (holidaysCache.has(yearStr)) {
         return holidaysCache.get(yearStr);
     }
-    
-    // 檢查內置資料
     if (HOLIDAY_DATA[yearStr]) {
-        const holidayMap = new Map();
-        for (const [iso, name] of Object.entries(HOLIDAY_DATA[yearStr])) {
-            holidayMap.set(iso, name);
-        }
-        holidaysCache.set(yearStr, holidayMap); // 存入快取
+        const holidayMap = new Map(Object.entries(HOLIDAY_DATA[yearStr]));
+        holidaysCache.set(yearStr, holidayMap);
         return holidayMap;
     } else {
-        // 如果年份超出範圍 (e.g. 2027)
-        return new Map(); // 返回空 Map
+        return new Map();
     }
 }
 
@@ -616,59 +662,62 @@ function getHolidayMapForYear(year) {
 // ---- 核心 Render 函數 (繪製月曆) ----
 function render(targetGrid, y, m_idx){
   const title = document.getElementById('title');
-  targetGrid.innerHTML = ''; // 清空舊內容
-  if (isNaN(y) || isNaN(m_idx)) { return; } // 安全檢查
+  targetGrid.innerHTML = '';
+  if (isNaN(y) || isNaN(m_idx)) { return; }
   
-  // 設定標題 (e.g., 2025年 十一月)
+  // --- Stamp data onto grid for state tracking ---
+  targetGrid.dataset.year = y;
+  targetGrid.dataset.monthIndex = m_idx;
+  
   title.textContent = new Date(y, m_idx, 1).toLocaleString('zh-HK',{year:'numeric', month:'long'});
   
-  // 獲取該年假期
+  // --- 設定 grid 嘅顯示 class ---
+  targetGrid.classList.toggle('show-five-team', showFiveTeam);
+  targetGrid.classList.toggle('show-three-team', showThreeTeam);
+  
   const yearHolidayMap = getHolidayMapForYear(y);
+  const base = firstCellDate(y, m_idx);
+  const filter = currentFilter(); // 只包含 A-E
   
-  const base = firstCellDate(y, m_idx); // 月曆左上角第一格嘅日期
-  const filter = currentFilter(); // 當前 A-E 篩選
-  
-  for(let i=0;i<42;i++){ // 繪製 42 格 (6行 x 7日)
+  for(let i=0;i<42;i++){
     const d = new Date(base); d.setDate(base.getDate()+i);
     const iso = fmtISO(d); 
-    const inMonth = d.getMonth()===m_idx; // 呢格係咪屬於今個月
+    const inMonth = d.getMonth()===m_idx;
     
-    // 計算主更 (e.g., C6)
-    const {letter, number} = letterNumFor(iso);
-    
-    // --- 【排序邏輯修正】---
-    // 獲取當日, 前一日, 再前一日嘅 Anchor
-    const trip = triplet(iso); 
+    // --- 計算兩種排序 ---
+    const {letter, number} = letterNumFor(iso); // For 12hr
+    const tripFive = triplet(iso); // [C6, D6, E6]
+    const tripThree = tripletThreeTeam(iso); // [C(24), C(2D), B(2D)] (已用新邏輯)
     
     const holiday = yearHolidayMap.get(iso) || ''; 
     const marker = customMarkers[iso];
 
     const cell = document.createElement('div');
-    cell.className = 'cell' + (inMonth ? '' : ' dim'); //非本月日期變暗
-    cell.dataset.iso = iso; cell.dataset.letter=letter; // 主更字母
+    cell.className = 'cell' + (inMonth ? '' : ' dim');
+    cell.dataset.iso = iso; cell.dataset.letter=letter; // letter 依然係 "五隊制" 嘅主更
     
-    // 處理假期 / 標記 嘅樣式同點擊事件
     if (holiday) {
         cell.classList.add('is-holiday');
         cell.addEventListener('click', () => { showModal(holiday); });
     } else if (marker) {
         cell.classList.add('is-marker');
         cell.style.borderColor = `var(--marker-${marker.color})`;
-        cell.addEventListener('click', () => { showModal(marker.description); });
+        // --- 點擊 marker 顯示新 modal ---
+        cell.addEventListener('click', () => { showMarkerInfoModal(iso, marker); });
     }
     
-    // 處理篩選 (A-E)
+    // --- 篩選邏輯 (只睇 A-E filter) ---
     if(filter.size > 0 && inMonth) {
-      // --- 【排序邏輯修正】---
-      // 檢查 [C6, D6, E6] 嘅第一個字母
-      const tripLetters = trip.map(code => code[0]); // e.g., [C, D, E]
-      const hasMatch = tripLetters.some(l => filter.has(l));
+      const tripFiveLetters = tripFive.map(code => code[0]); // [C, D, E]
+      const tripThreeLetters = tripThree.map(code => code[0]); // [C, C, B]
+      const allLetters = [...tripFiveLetters, ...tripThreeLetters];
+      
+      const hasMatch = allLetters.some(l => filter.has(l));
       if (!hasMatch) {
-        cell.classList.add('filtered-dim'); // 如果冇中，成格變暗
+        cell.classList.add('filtered-dim');
       }
     }
 
-    // 顯示日期數字
     const head = document.createElement('div'); head.className='dhead';
     const num = document.createElement('div'); num.className='dnum' + (iso === TODAY_ISO ? ' today' : '');
     num.textContent = d.getDate();
@@ -676,37 +725,44 @@ function render(targetGrid, y, m_idx){
     head.appendChild(document.createElement('div'));
     cell.appendChild(head);
 
-    // 如果係本月日期，先顯示班次同備註
     if(inMonth){
-      const tp=document.createElement('div'); tp.className='trip';
-      
-      // --- 【排序邏輯修正】---
-      // 顯示三個班次，並上色
-      trip.forEach(code=>{ 
+      // --- 建立 "12小時工作" 容器 ---
+      const tp5 = document.createElement('div'); 
+      tp5.className = 'trip-five'; // CSS 會根據 .grid 狀態控制顯示
+      tripFive.forEach(code=>{ 
         const div=document.createElement('div'); 
         div.className='code';
-        
-        // 提取第一個字母用嚟上色 (e.g., 'C6' -> 'C', 'D6' -> 'D')
         const letterForColor = code[0];
-        div.classList.add(letterForColor); // 用 CSS class (.A, .B, .C...) 上色
-        
+        div.classList.add(letterForColor);
         div.textContent=code; 
-        tp.appendChild(div); 
+        tp5.appendChild(div); 
       });
-      cell.appendChild(tp);
+      cell.appendChild(tp5);
       
-      // 備註 input
+      // --- 建立 "24小時工作" 容器 ---
+      const tp3 = document.createElement('div'); 
+      tp3.className = 'trip-three'; // CSS 會根據 .grid 狀態控制顯示
+      tripThree.forEach(code=>{ 
+        const div=document.createElement('div'); 
+        div.className='code';
+        const letterForColor = code[0];
+        div.classList.add(letterForColor);
+        div.textContent=code; 
+        tp3.appendChild(div); 
+      });
+      cell.appendChild(tp3);
+      
       const notes = document.createElement('input');
       notes.type = 'text';
       notes.className = 'notes-input';
       notes.placeholder = '加備註...';
       notes.value = dailyNotes[iso] || '';
-      notes.addEventListener('input', (e) => { // 自動儲存
+      notes.addEventListener('input', (e) => {
         dailyNotes[iso] = e.target.value.trim();
-        if (dailyNotes[iso] === '') delete dailyNotes[iso]; // 冇內容就刪咗佢
+        if (dailyNotes[iso] === '') delete dailyNotes[iso];
         saveData();
       });
-      notes.addEventListener('click', (e) => { e.stopPropagation(); }); // 避免點 input = 點成格
+      notes.addEventListener('click', (e) => { e.stopPropagation(); });
       cell.appendChild(notes);
     }
     targetGrid.appendChild(cell);
@@ -718,25 +774,30 @@ function collectRows(isoDates){
   const rows = [];
   for(const iso of isoDates){
     // const {letter, number} = letterNumFor(iso); // 唔再需要
-    const trip = triplet(iso); // 獲取 [C6, D6, E6]
+    const tripFive = triplet(iso);
+    const tripThree = tripletThreeTeam(iso); // 已用新邏輯
     rows.push({
       iso,
-      triplet: trip, // 儲存所有三個班次
+      tripletFive: tripFive,
+      tripletThree: tripThree, 
       note: dailyNotes[iso] || ''
     });
   }
   return rows;
 }
 
-// --- 輸出 CSV 功能 ---
+// --- 輸出 CSV 功能 (已更新 header) ---
 function exportCSV(rows){
-  const header = ['日期', '週期', '備註'];
+  const header = ['日期', '12小時工作', '24小時工作', '備註'];
   const lines = [header.join(',')];
   for(const r of rows){
-    // CSV 嘅「週期」欄會顯示所有3個班次
-    const cells = [ r.iso, r.triplet.join(' '), r.note || '' ]
-      .map(v => String(v).replaceAll('"','""')); // 處理 "
-    lines.push(cells.map(v => /[",\n]/.test(v) ? `"${v}"` : v).join(',')); // 處理 , 同 換行
+    const cells = [ 
+      r.iso, 
+      r.tripletFive.join(' '), 
+      r.tripletThree.join(' '), 
+      r.note || '' 
+    ].map(v => String(v).replaceAll('"','""'));
+    lines.push(cells.map(v => /[",\n]/.test(v) ? `"${v}"` : v).join(','));
   }
   const blob = new Blob([lines.join('\n')], {type:'text/csv;charset=utf-8;'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='calendar_notes_export.csv'; document.body.appendChild(a); a.click(); a.remove();
@@ -744,14 +805,13 @@ function exportCSV(rows){
 
 // ---- 主要執行：等 DOM Ready ----
 document.addEventListener('DOMContentLoaded', () => {
-  loadData(); // 載入已儲存嘅備註同標記
+  loadData();
   
-  // 獲取所有重要 DOM 元素
   const mainWrap = document.getElementById('mainWrap');
   const monthPick = document.getElementById('monthPick');
   const prevM = document.getElementById('prevM');
   const nextM = document.getElementById('nextM');
-  const chips = Array.from(document.querySelectorAll('.chip'));
+  const chips = Array.from(document.querySelectorAll('.chip-group .chip')); // 只 target A-E
   const btnExport = document.getElementById('btnExport');
   const modalCloseBtn = document.getElementById('customAlertClose');
   const modalBackdrop = document.getElementById('customAlert');
@@ -765,26 +825,35 @@ document.addEventListener('DOMContentLoaded', () => {
   const helpModal = document.getElementById('helpModal');
   const btnCloseHelp = document.getElementById('btnCloseHelp');
   const btnExportText = document.getElementById('btnExportText');
+  
+  // --- 獲取新元素 (ID 已更新) ---
+  const btnToggle12hr = document.getElementById('btnToggle12hr');
+  const btnToggle24hr = document.getElementById('btnToggle24hr');
+  const markerInfoModal = document.getElementById('markerInfoModal');
+  const btnCloseMarkerInfo = document.getElementById('btnCloseMarkerInfo');
+  const btnDeleteMarker = document.getElementById('btnDeleteMarker');
 
   let currentGrid = document.getElementById('grid');
-  let isAnimating = false; // 防止動畫重疊
+  let isAnimating = false;
   
   mainWrap.style.position = 'relative';
   mainWrap.style.overflowX = 'hidden';
 
-  // 確保所有嘢都存在
-  if (!currentGrid || !monthPick || !prevM || !nextM || !btnExport || !btnAddMarker || !btnHelp || !btnExportText) {
+  if (!currentGrid || !btnToggle12hr || !btnToggle24hr || !markerInfoModal) {
       console.error('Initialization failed: Missing critical DOM elements.');
       return;
   }
+  
+  // --- 初始化按鈕狀態 (已更新) ---
+  btnToggle12hr.dataset.on = showFiveTeam ? '1' : '0';
+  btnToggle24hr.dataset.on = showThreeTeam ? '1' : '0';
 
-  // 設定初始月份 (基準日所在月份)
+
   const t = new Date(TODAY_ISO+'T00:00:00');
   const startYear = t.getFullYear();
   const startMonthIndex = t.getMonth();
   monthPick.value = `${startYear}-${(startMonthIndex + 1).toString().padStart(2, '0')}`;
   
-  // 高亮星期欄嘅「今日」
   const todayDow = t.getDay();
   const weekbarDivs = document.querySelectorAll('#weekbar div');
   if (weekbarDivs[todayDow]) {
@@ -792,11 +861,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --- 切換月份核心函數 (帶動畫) ---
-  function changeMonth(direction) { // direction: -1 = 上, 1 = 下
+  function changeMonth(direction) {
       if (isAnimating) return;
       isAnimating = true;
 
-      // 計算新日期
       const [y, m] = monthPick.value.split('-').map(Number);
       const d = new Date(y, m - 1, 1);
       d.setMonth(d.getMonth() + direction);
@@ -806,38 +874,35 @@ document.addEventListener('DOMContentLoaded', () => {
       
       monthPick.value = `${newY}-${(newM_idx + 1).toString().padStart(2, '0')}`;
 
-      // 建立新 grid
       const newGrid = document.createElement('div');
       newGrid.className = 'grid'; newGrid.id = 'grid';
 
-      render(newGrid, newY, newM_idx); // 繪製新月份
+      render(newGrid, newY, newM_idx); 
       
       const oldGrid = currentGrid;
-      oldGrid.id = 'grid-old'; // 標記舊 grid
+      oldGrid.id = 'grid-old';
       
-      mainWrap.appendChild(newGrid); // 將新 grid 加入 DOM
+      mainWrap.appendChild(newGrid);
       currentGrid = newGrid;
       
-      // 監聽動畫結束事件
       let animationEnded = false;
       const onAnimEnd = () => {
           if (animationEnded) return;
           animationEnded = true;
           if (document.body.contains(oldGrid)) {
-            oldGrid.remove(); // 移除舊 grid
+            oldGrid.remove();
           }
           isAnimating = false;
       };
       
       oldGrid.addEventListener('animationend', onAnimEnd);
-      setTimeout(onAnimEnd, 450); // Fallback，確保動畫一定會完
+      setTimeout(onAnimEnd, 450); // Fallback
 
-      // 觸發動畫
       requestAnimationFrame(() => {
-          if (direction > 0) { // 下個月
+          if (direction > 0) {
               oldGrid.classList.add('animate-out-left');
               newGrid.classList.add('animate-in-right');
-          } else { // 上個月
+          } else {
               oldGrid.classList.add('animate-out-right');
               newGrid.classList.add('animate-in-left');
           }
@@ -845,43 +910,57 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   
   // --- 綁定事件 ---
-  
-  // 月份導航
   prevM.addEventListener('click', () => changeMonth(-1));
   nextM.addEventListener('click', () => changeMonth(1));
   
-  // 月份選擇器
   monthPick.addEventListener('change', () => {
+      if (isAnimating) { // <-- Add guard
+          // Revert to the month that is currently on screen
+          if (currentGrid.dataset.year && currentGrid.dataset.monthIndex) {
+              const y_s = currentGrid.dataset.year;
+              const m_idx_s = currentGrid.dataset.monthIndex;
+              monthPick.value = `${y_s}-${(parseInt(m_idx_s, 10) + 1).toString().padStart(2, '0')}`;
+          }
+          return; 
+      }
       const [y, m] = monthPick.value.split('-').map(Number);
       render(currentGrid, y, m - 1);
   });
 
   // A-E 篩選
   chips.forEach(c=>c.addEventListener('click', ()=>{
-    c.dataset.on = c.dataset.on==='1' ? '0' : '1'; // 切換狀態
+    if (isAnimating) return; // <-- Add guard
+    c.dataset.on = c.dataset.on==='1' ? '0' : '1';
     const [y, m] = monthPick.value.split('-').map(Number);
-    render(currentGrid, y, m - 1); // 重新 render
+    render(currentGrid, y, m - 1);
   }));
 
   // 輸出 CSV
   btnExport.addEventListener('click', ()=>{
+    if (isAnimating) return; // <-- Add guard
     const isoDatesWithNotes = Object.keys(dailyNotes).filter(iso => dailyNotes[iso] && dailyNotes[iso].trim() !== '');
-    if(isoDatesWithNotes.length === 0){ 
-      showModal('請先輸入至少一項備註。');
+    if(isoDatesWithNotes.length === 0 && Object.keys(customMarkers).length === 0){ 
+      showModal('請先輸入至少一項備註或標記。');
       return; 
     }
-    const rows = collectRows(isoDatesWithNotes.sort()); // 收集數據
+    const allDates = new Set([...Object.keys(dailyNotes), ...Object.keys(customMarkers)]);
+    const sortedDates = Array.from(allDates).sort();
+    
+    const rows = collectRows(sortedDates);
     exportCSV(rows);
   });
 
-  // 關閉提示 Modal
+  // 提示 Modal
   modalCloseBtn.addEventListener('click', closeModal);
   modalBackdrop.addEventListener('click', (e) => {
     if (e.target === modalBackdrop) closeModal();
   });
   
   // 新增標記 Modal
-  btnAddMarker.addEventListener('click', () => { showMarkerModal(); });
+  btnAddMarker.addEventListener('click', () => { 
+    if (isAnimating) return; // <-- Add guard
+    showMarkerModal(); 
+  });
   btnCancelMarker.addEventListener('click', closeMarkerModal);
   markerModal.addEventListener('click', (e) => {
     if (e.target === markerModal) closeMarkerModal();
@@ -900,27 +979,66 @@ document.addEventListener('DOMContentLoaded', () => {
       saveData();
       closeMarkerModal();
       
-      // 重新 render 顯示新標記
       const [y, m] = monthPick.value.split('-').map(Number);
       render(currentGrid, y, m - 1);
   });
   
   // 幫助 Modal
-  btnHelp.addEventListener('click', showHelpModal);
+  btnHelp.addEventListener('click', () => {
+    if (isAnimating) return; // <-- Add guard
+    showHelpModal();
+  });
   btnCloseHelp.addEventListener('click', closeHelpModal);
   helpModal.addEventListener('click', (e) => {
     if (e.target === helpModal) closeHelpModal();
   });
   
-  // 輸出文字
+  // --- 12/24小時 切換事件 (ID 已更新) ---
+  btnToggle12hr.addEventListener('click', () => {
+      if (isAnimating) return; // <-- Add guard
+      showFiveTeam = !showFiveTeam;
+      btnToggle12hr.dataset.on = showFiveTeam ? '1' : '0';
+      
+      // Call render() 
+      const [y, m] = monthPick.value.split('-').map(Number);
+      render(currentGrid, y, m - 1);
+  });
+
+  btnToggle24hr.addEventListener('click', () => {
+      if (isAnimating) return; // <-- Add guard
+      showThreeTeam = !showThreeTeam;
+      btnToggle24hr.dataset.on = showThreeTeam ? '1' : '0';
+
+      // Call render()
+      const [y, m] = monthPick.value.split('-').map(Number);
+      render(currentGrid, y, m - 1);
+  });
+
+  // --- 刪除標記 Modal 事件 ---
+  btnCloseMarkerInfo.addEventListener('click', closeMarkerInfoModal);
+  markerInfoModal.addEventListener('click', (e) => {
+      if (e.target === markerInfoModal) closeMarkerInfoModal();
+  });
+  btnDeleteMarker.addEventListener('click', () => {
+      if (currentMarkerISO) {
+          delete customMarkers[currentMarkerISO];
+          saveData();
+          closeMarkerInfoModal();
+          // 重新 render 嚟移除標記
+          const [y, m] = monthPick.value.split('-').map(Number);
+          render(currentGrid, y, m - 1);
+      }
+  });
+  
+  // --- 輸出文字 (已更新) ---
   btnExportText.addEventListener('click', () => {
-      // 收集所有有備註 或 有標記 嘅日期
+      if (isAnimating) return; // <-- Add guard
       const allIsoDates = new Set([
           ...Object.keys(dailyNotes).filter(iso => dailyNotes[iso] && dailyNotes[iso].trim() !== ''), 
           ...Object.keys(customMarkers)
       ]);
       
-      const sortedDates = Array.from(allIsoDates).sort(); // 排序
+      const sortedDates = Array.from(allIsoDates).sort();
       
       if (sortedDates.length === 0) {
           showModal('沒有任何備註或標記可供複製。');
@@ -936,8 +1054,12 @@ document.addEventListener('DOMContentLoaded', () => {
           const marker = customMarkers[iso];
           
           const year = d.getFullYear();
-          const holidayMap = getHolidayMapForYear(year); // 獲取假期
+          const holidayMap = getHolidayMapForYear(year);
           const holiday = holidayMap.get(iso);
+
+          // --- 導出兩種排序 ---
+          const tripFive = triplet(iso);
+          const tripThree = tripletThreeTeam(iso); // 已用新邏輯
 
           output += `${iso} (${weekday})\n`;
           
@@ -951,7 +1073,9 @@ document.addEventListener('DOMContentLoaded', () => {
           if (note && note.trim() !== '') {
               output += `  - 備註: ${note}\n`;
           }
-          output += '\n'; // 每個日期後加空行
+          output += `  - 12小時: ${tripFive.join(', ')}\n`;
+          output += `  - 24小時: ${tripThree.join(', ')}\n`;
+          output += '\n';
       }
       
       output += "--------------------";
@@ -960,9 +1084,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   // --- 初始 Render ---
-  // 載入頁面時，第一次繪製月曆
   render(currentGrid, startYear, startMonthIndex);
 });
 </script>
 </body>
 </html>
+
+
