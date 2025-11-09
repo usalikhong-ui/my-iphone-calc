@@ -5,11 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>ABCDE 月曆（備註版）</title>
 <!-- 
-  v4.2 - 2025-11-09
-  1.  按鈕改名: "五隊制" -> "12小時工作", "三隊制" -> "24小時工作".
-  2.  "12小時工作" 預設開啟, "24小時工作" 預設關閉.
-  3.  實現全新 "24小時工作" (三隊制) 排序邏輯 (C>A>B, C>D>A>B).
-  4.  調整 CSS，縮細字體同間距，優化手機顯示.
+  v5.3 - 2025-11-09
+  1.  (FIX) 修正 12hr 篩選邏輯，使其檢查 tripFive[0], [1], [2] 所有三個班次。
+  2.  (FIX) 修正 v5.1 中 'e.g.target.value' 嘅打字錯誤。
 -->
 <style>
   :root{
@@ -49,11 +47,7 @@
     margin-top: 10px;
     flex-wrap: wrap;
   }
-  .chip-group {
-    display: flex;
-    gap: 6px;
-    flex-shrink: 0;
-  }
+  
   .button-group {
     display: flex;
     gap: 10px;
@@ -90,14 +84,8 @@
   input[type="month"]{ background:transparent; color:var(--txt); border:1px dashed var(--stroke); border-radius:10px; padding:8px 10px; outline:none; flex-shrink: 0; }
   .chip{ padding:6px 12px; border-radius:999px; background: var(--panel); border:1px solid var(--stroke); cursor:pointer; user-select:none; }
   
-  /* --- 修改：切換按鈕樣式 --- */
   .btn.chip { user-select: none; }
 
-  /* A-E 篩選按鈕 (喺 .chip-group 入面) */
-  .chip-group .chip[data-on="1"] { 
-    outline: 2px solid var(--accent); 
-  }
-  
   /* 12hr/24hr 按鈕特定顏色 */
   #btnToggle12hr,
   #btnToggle24hr {
@@ -124,7 +112,6 @@
     opacity: 0.85; /* 稍為調暗 */
   }
   
-  /* 移除呢兩個掣嘅 hover 預設 outline */
   #btnToggle12hr:hover,
   #btnToggle24hr:hover {
     opacity: 1; /* 確保 hover 時 100% */
@@ -132,7 +119,6 @@
   }
   
   .btn{ padding:8px 12px; border-radius:10px; border:1px solid var(--stroke); background:var(--panel); color:var(--txt); cursor:pointer; }
-  /* 確保其他 .btn 嘅 hover 正常 */
   .btn:hover:not(#btnToggle12hr):not(#btnToggle24hr) { 
     outline:2px solid var(--accent); 
   }
@@ -144,15 +130,14 @@
     font-weight: 700;
   }
   
-  /* --- 畫面優化：縮細 grid/cell 間距 --- */
   .grid{ display:grid; grid-template-columns: repeat(7,1fr); gap:3px; margin-top:8px; }
   
   .cell{ 
-    min-height: 110px; /* 縮細高度 */
+    min-height: 110px; 
     background: var(--card); border:1px solid var(--stroke); border-radius:10px; 
-    padding: 5px; /* 縮細 padding */
+    padding: 5px;
     display:flex; flex-direction:column; 
-    gap: 3px; /* 縮細內部間距 */
+    gap: 3px;
     transition: opacity .2s, border-color .2s; cursor:pointer; 
   }
   .cell.dim{ opacity:.35; }
@@ -160,8 +145,8 @@
   .cell.filtered-dim { opacity: .35; }
   
   .dhead{ display:flex; align-items:center; justify-content:space-between; }
-  .dnum{ font-weight:700; font-size: 15px; } /* 縮細日期字體 */
-  .dnum.today{ outline:2px solid var(--today); border-radius:8px; padding:1px 5px; } /* 縮細 today padding */
+  .dnum{ font-weight:700; font-size: 15px; }
+  .dnum.today{ outline:2px solid var(--today); border-radius:8px; padding:1px 5px; }
 
   .cell.is-holiday {
     border-left: 3px solid var(--holiday);
@@ -172,26 +157,23 @@
     padding-left: 6px;
   }
 
-  /* --- 三隊/五隊 樣式 --- */
   .trip-five, .trip-three {
-    display: none; /* 預設隱藏 */
+    display: none;
     flex-direction: column;
-    gap: 1px; /* 縮細班次間距 */
+    gap: 1px;
   }
-  /* --- CSS class 控制顯示 --- */
   .grid.show-five-team .trip-five {
     display: flex;
   }
   .grid.show-three-team .trip-three {
     display: flex;
-    border-top: 1px dashed var(--stroke); /* 加分隔線 */
+    border-top: 1px dashed var(--stroke);
     margin-top: 4px;
     padding-top: 4px;
   }
   
-  .code{ font-weight:800; letter-spacing:0.1px; font-size: 12px; } /* 縮細班次字體 */
+  .code{ font-weight:800; letter-spacing:0.1px; font-size: 12px; }
   
-  /* 顏色定義 */
   .A{ color:#3b82f6;} 
   .B{ color:#f59e0b;} 
   .C{ color:#22c55e;} 
@@ -289,6 +271,30 @@
   .form-group input:focus, .form-group select:focus {
     outline: 1px solid var(--accent);
   }
+  
+  .radio-group-row {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+  }
+  .radio-group-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+  }
+  .radio-group-row label, .radio-group-grid label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .filter-options-group {
+    border-top: 1px solid var(--stroke);
+    margin-top: 15px;
+    padding-top: 15px;
+  }
+  
   .color-select {
     display: flex;
     gap: 10px;
@@ -356,18 +362,11 @@
       <input type="month" id="monthPick">
     </div>
     <div class="top-filters">
-      <div class="chip-group">
-        <div class="chip" data-on="0" data-letter="A">A</div>
-        <div class="chip" data-on="0" data-letter="B">B</div>
-        <div class="chip" data-on="0" data-letter="C">C</div>
-        <div class="chip" data-on="0" data-letter="D">D</div>
-        <div class="chip" data-on="0" data-letter="E">E</div>
-      </div>
+      
       <div class="button-group">
-        <!-- --- 按鈕 (ID/文字/預設值 已更新) --- -->
         <button class="btn chip" id="btnToggle12hr" data-on="1">12小時工作</button>
         <button class="btn chip" id="btnToggle24hr" data-on="0">24小時工作</button>
-        
+        <button class="btn" id="btnShowFilter" style="background: var(--panel);">篩選</button>
         <button class="btn btn-help" id="btnHelp">說明</button>
         <button class="btn btn-add-marker" id="btnAddMarker">+ 標記</button>
         <button class="btn" id="btnExportText">輸出文字</button>
@@ -440,13 +439,81 @@
   </div>
 </div>
 
+<!-- --- 新增：篩選 Modal --- -->
+<div class="modal-backdrop" id="filterModal">
+  <div class="modal-content">
+    <h3>週期篩選</h3>
+    
+    <div class="form-group">
+      <label>篩選類型</label>
+      <div class="radio-group-row">
+        <label><input type="radio" name="filterType" value="none" checked> 不篩選</label>
+        <label><input type="radio" name="filterType" value="12hr"> 12小時</label>
+        <label><input type="radio" name="filterType" value="24hr"> 24小時</label>
+      </div>
+    </div>
+
+    <!-- 12-hour options -->
+    <div class="filter-options-group" id="filterOptions12hr" style="display: none;">
+      <div class="form-group">
+        <label>12小時 - 字母</label>
+        <div class="radio-group-grid">
+          <label><input type="radio" name="filter12Letter" value="none" checked> 無</label>
+          <label><input type="radio" name="filter12Letter" value="A"> A</label>
+          <label><input type="radio" name="filter12Letter" value="B"> B</label>
+          <label><input type="radio" name="filter12Letter" value="C"> C</label>
+          <label><input type="radio" name="filter12Letter" value="D"> D</label>
+          <label><input type="radio" name="filter12Letter" value="E"> E</label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>12小時 - 數字 (Rota)</label>
+        <div class="radio-group-grid" style="grid-template-columns: repeat(6, 1fr);">
+          <label><input type="radio" name="filter12Number" value="none" checked> 無</label>
+          <label><input type="radio" name="filter12Number" value="1"> 1</label>
+          <label><input type="radio" name="filter12Number" value="2"> 2</label>
+          <label><input type="radio" name="filter12Number" value="3"> 3</label>
+          <label><input type="radio" name="filter12Number" value="4"> 4</label>
+          <label><input type="radio" name="filter12Number" value="5"> 5</label>
+          <label><input type="radio" name="filter12Number" value="6"> 6</label>
+          <label><input type="radio" name="filter12Number" value="7"> 7</label>
+          <label><input type="radio" name="filter12Number" value="8"> 8</label>
+          <label><input type="radio" name="filter12Number" value="9"> 9</label>
+          <label><input type="radio" name="filter12Number" value="10"> 10</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- 24-hour options -->
+    <div class="filter-options-group" id="filterOptions24hr" style="display: none;">
+      <div class="form-group">
+        <label>24小時 - 字母</label>
+        <div class="radio-group-grid">
+          <label><input type="radio" name="filter24Letter" value="none" checked> 無</label>
+          <label><input type="radio" name="filter24Letter" value="A"> A</label>
+          <label><input type="radio" name="filter24Letter" value="B"> B</label>
+          <label><input type="radio" name="filter24Letter" value="C"> C</label>
+          <label><input type="radio" name="filter24Letter" value="D"> D</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="secondary" id="btnClearFilter">清除篩選</button>
+      <button class="secondary" id="btnCancelFilter">取消</button>
+      <button id="btnApplyFilter">套用篩選</button>
+    </div>
+  </div>
+</div>
+
+
 <!-- 彈窗 (幫助說明) -->
 <div class="modal-backdrop" id="helpModal">
   <div class="modal-content">
     <h3>使用說明</h3>
     <!-- --- 說明文字 (已更新) --- -->
     <ul>
-      <li><b>週期篩選 (A-E)</b>: 點擊 <code>A</code> 至 <code>E</code> 按鈕，日曆將高亮顯示 *所有* 班次 (不論 12/24 小時) 包含該字母嘅日子。</li>
+      <li><b>週期篩選</b>: 點擊 <code>篩選</code> 按鈕，可以彈出篩選視窗。您可以嚴格區分「12小時」或「24小時」工作類型進行篩選。</li>
       <li><b>12小時 / 24小時</b>: 點擊 <code>12小時工作</code> 或 <code>24小時工作</code> 按鈕，可切換顯示對應嘅班次排序。</li>
       <li><b>自動儲存</b>: 在日期格底部輸入的「備註」，將會自動儲存於您的瀏覽器中，下次開啟時資料將自動載入。</li>
       <li><b>公眾假期</b>: 左側帶有<code>紅色</code>邊框的日期為香港公眾假期，點擊該日期格可查看假期名稱。</li>
@@ -492,6 +559,14 @@ let holidaysCache = new Map();
 let showFiveTeam = true;  // 12小時工作 (預設 ON)
 let showThreeTeam = false; // 24小時工作 (預設 OFF)
 let currentMarkerISO = null; // 用於追蹤要刪除嘅標記
+
+// --- 新增：Global 篩選狀態 ---
+let filterState = {
+    type: 'none', // 'none', '12hr', '24hr'
+    letter12: 'none',
+    number12: 'none',
+    letter24: 'none'
+};
 
 // ---- 儲存/讀取功能 (LocalStorage) ----
 function saveData() {
@@ -575,14 +650,6 @@ function firstCellDate(y, m){
   return new Date(y, m, 1 - startDow);
 }
 
-// 獲取當前啟動嘅篩選 (A-E)
-function currentFilter(){
-  const chipElements = document.querySelectorAll('.chip-group .chip'); // 只 target A-E
-  const set = new Set();
-  for(const c of chipElements){ if(c.dataset.on==='1') set.add(c.dataset.letter); }
-  return set;
-}
-
 // ---- Modal 顯示/隱藏 ----
 function showModal(message) {
   const modal = document.getElementById('customAlert');
@@ -609,6 +676,25 @@ function showHelpModal() {
 function closeHelpModal() {
     document.getElementById('helpModal').classList.remove('show');
 }
+
+// --- 新增：篩選 Modal 顯示/隱藏 ---
+function showFilterModal() {
+    // 載入 modal 時，將 global state 填入 radio buttons
+    document.querySelector(`input[name="filterType"][value="${filterState.type}"]`).checked = true;
+    document.querySelector(`input[name="filter12Letter"][value="${filterState.letter12}"]`).checked = true;
+    document.querySelector(`input[name="filter12Number"][value="${filterState.number12}"]`).checked = true;
+    document.querySelector(`input[name="filter24Letter"][value="${filterState.letter24}"]`).checked = true;
+    
+    // 根據 filterType 顯示/隱藏選項
+    document.getElementById('filterOptions12hr').style.display = (filterState.type === '12hr') ? 'block' : 'none';
+    document.getElementById('filterOptions24hr').style.display = (filterState.type === '24hr') ? 'block' : 'none';
+    
+    document.getElementById('filterModal').classList.add('show');
+}
+function closeFilterModal() {
+    document.getElementById('filterModal').classList.remove('show');
+}
+
 
 // --- 顯示/刪除 標記 Modal ---
 function showMarkerInfoModal(iso, marker) {
@@ -665,19 +751,16 @@ function render(targetGrid, y, m_idx){
   targetGrid.innerHTML = '';
   if (isNaN(y) || isNaN(m_idx)) { return; }
   
-  // --- Stamp data onto grid for state tracking ---
   targetGrid.dataset.year = y;
   targetGrid.dataset.monthIndex = m_idx;
   
   title.textContent = new Date(y, m_idx, 1).toLocaleString('zh-HK',{year:'numeric', month:'long'});
   
-  // --- 設定 grid 嘅顯示 class ---
   targetGrid.classList.toggle('show-five-team', showFiveTeam);
   targetGrid.classList.toggle('show-three-team', showThreeTeam);
   
   const yearHolidayMap = getHolidayMapForYear(y);
   const base = firstCellDate(y, m_idx);
-  const filter = currentFilter(); // 只包含 A-E
   
   for(let i=0;i<42;i++){
     const d = new Date(base); d.setDate(base.getDate()+i);
@@ -685,16 +768,17 @@ function render(targetGrid, y, m_idx){
     const inMonth = d.getMonth()===m_idx;
     
     // --- 計算兩種排序 ---
-    const {letter, number} = letterNumFor(iso); // For 12hr
-    const tripFive = triplet(iso); // [C6, D6, E6]
-    const tripThree = tripletThreeTeam(iso); // [C(24), C(2D), B(2D)] (已用新邏輯)
+    // const {letter, number} = letterNumFor(iso); // (v5.3 修正：呢行唔再需要)
+    const tripFive = triplet(iso); // [C7, B7, A7]
+    const tripThree = tripletThreeTeam(iso); // [C(24), C(2D), B(2D)]
     
     const holiday = yearHolidayMap.get(iso) || ''; 
     const marker = customMarkers[iso];
 
     const cell = document.createElement('div');
     cell.className = 'cell' + (inMonth ? '' : ' dim');
-    cell.dataset.iso = iso; cell.dataset.letter=letter; // letter 依然係 "五隊制" 嘅主更
+    cell.dataset.iso = iso; 
+    // cell.dataset.letter=letter; // (v5.3 修正：呢行唔再需要)
     
     if (holiday) {
         cell.classList.add('is-holiday');
@@ -702,21 +786,85 @@ function render(targetGrid, y, m_idx){
     } else if (marker) {
         cell.classList.add('is-marker');
         cell.style.borderColor = `var(--marker-${marker.color})`;
-        // --- 點擊 marker 顯示新 modal ---
         cell.addEventListener('click', () => { showMarkerInfoModal(iso, marker); });
     }
     
-    // --- 篩選邏輯 (只睇 A-E filter) ---
-    if(filter.size > 0 && inMonth) {
-      const tripFiveLetters = tripFive.map(code => code[0]); // [C, D, E]
-      const tripThreeLetters = tripThree.map(code => code[0]); // [C, C, B]
-      const allLetters = [...tripFiveLetters, ...tripThreeLetters];
-      
-      const hasMatch = allLetters.some(l => filter.has(l));
-      if (!hasMatch) {
-        cell.classList.add('filtered-dim');
-      }
+    // --- 篩選邏輯 (v5.3 修正) ---
+    let isFiltered = false;
+    if (inMonth && filterState.type !== 'none') {
+        
+        if (filterState.type === '12hr') {
+            // "12小時" 篩選邏輯
+            
+            // 檢查 C / C7 / 7
+            let letterMatch = (filterState.letter12 === 'none');
+            let numberMatch = (filterState.number12 === 'none');
+            
+            // (FIX) 檢查所有三個班次
+            for (const shift of tripFive) { // e.g., tripFive = [C7, B7, A7]
+                const letter = shift[0]; // C
+                const numStr = (shift.match(/\d+/) || [''])[0]; // 7
+                
+                if (filterState.letter12 !== 'none' && filterState.letter12 === letter) {
+                    letterMatch = true;
+                }
+                if (filterState.number12 !== 'none' && filterState.number12 === numStr) {
+                    numberMatch = true;
+                }
+            }
+
+            // 釐清邏輯：
+            // 1. 揀 C, 揀 7 -> 搵 C or 7 (目前邏輯)
+            // 2. 揀 C, 揀 7 -> 搵 C AND 7 (即 C7) (v5.3 新邏輯)
+            
+            // v5.3 採用邏輯 #2:
+            // 如果 字母 = 'none' and 數字 = 'none' -> 唔篩選 (match = true)
+            // 如果 字母 != 'none' and 數字 = 'none' -> 淨係 check 字母
+            // 如果 字母 = 'none' and 數字 != 'none' -> 淨係 check 數字
+            // 如果 字母 != 'none' and 數字 != 'none' -> 必須同時 match C 同 7
+
+            let dayMatches = false;
+            
+            if (filterState.letter12 === 'none' && filterState.number12 === 'none') {
+                dayMatches = true; // 唔應該發生，因為 type 唔係 'none'
+            } else if (filterState.letter12 !== 'none' && filterState.number12 === 'none') {
+                // 只篩選字母 (e.g., C)
+                dayMatches = tripFive.some(shift => shift[0] === filterState.letter12);
+            } else if (filterState.letter12 === 'none' && filterState.number12 !== 'none') {
+                // 只篩選數字 (e.g., 7)
+                dayMatches = tripFive.some(shift => {
+                    const numStr = (shift.match(/\d+/) || [''])[0];
+                    return numStr === filterState.number12;
+                });
+            } else {
+                // 篩選 字母 AND 數字 (e.g., C7)
+                dayMatches = tripFive.some(shift => {
+                    const letter = shift[0];
+                    const numStr = (shift.match(/\d+/) || [''])[0];
+                    return letter === filterState.letter12 && numStr === filterState.number12;
+                });
+            }
+
+            if (!dayMatches) {
+                isFiltered = true;
+            }
+            
+        } else if (filterState.type === '24hr') {
+            // "24小時" 篩選邏輯
+            if (filterState.letter24 !== 'none') {
+                const allLetters24 = tripThree.map(code => code[0]); // [C, C, B]
+                const hasMatch = allLetters24.some(l => l === filterState.letter24);
+                if (!hasMatch) {
+                    isFiltered = true;
+                }
+            }
+        }
     }
+    
+    if (isFiltered) {
+        cell.classList.add('filtered-dim');
+    }
+    // --- (篩選邏輯結束) ---
 
     const head = document.createElement('div'); head.className='dhead';
     const num = document.createElement('div'); num.className='dnum' + (iso === TODAY_ISO ? ' today' : '');
@@ -726,9 +874,8 @@ function render(targetGrid, y, m_idx){
     cell.appendChild(head);
 
     if(inMonth){
-      // --- 建立 "12小時工作" 容器 ---
       const tp5 = document.createElement('div'); 
-      tp5.className = 'trip-five'; // CSS 會根據 .grid 狀態控制顯示
+      tp5.className = 'trip-five';
       tripFive.forEach(code=>{ 
         const div=document.createElement('div'); 
         div.className='code';
@@ -739,9 +886,8 @@ function render(targetGrid, y, m_idx){
       });
       cell.appendChild(tp5);
       
-      // --- 建立 "24小時工作" 容器 ---
       const tp3 = document.createElement('div'); 
-      tp3.className = 'trip-three'; // CSS 會根據 .grid 狀態控制顯示
+      tp3.className = 'trip-three';
       tripThree.forEach(code=>{ 
         const div=document.createElement('div'); 
         div.className='code';
@@ -773,9 +919,8 @@ function render(targetGrid, y, m_idx){
 function collectRows(isoDates){
   const rows = [];
   for(const iso of isoDates){
-    // const {letter, number} = letterNumFor(iso); // 唔再需要
     const tripFive = triplet(iso);
-    const tripThree = tripletThreeTeam(iso); // 已用新邏輯
+    const tripThree = tripletThreeTeam(iso);
     rows.push({
       iso,
       tripletFive: tripFive,
@@ -786,7 +931,7 @@ function collectRows(isoDates){
   return rows;
 }
 
-// --- 輸出 CSV 功能 (已更新 header) ---
+// --- 輸出 CSV 功能 ---
 function exportCSV(rows){
   const header = ['日期', '12小時工作', '24小時工作', '備註'];
   const lines = [header.join(',')];
@@ -811,7 +956,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const monthPick = document.getElementById('monthPick');
   const prevM = document.getElementById('prevM');
   const nextM = document.getElementById('nextM');
-  const chips = Array.from(document.querySelectorAll('.chip-group .chip')); // 只 target A-E
   const btnExport = document.getElementById('btnExport');
   const modalCloseBtn = document.getElementById('customAlertClose');
   const modalBackdrop = document.getElementById('customAlert');
@@ -826,12 +970,21 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnCloseHelp = document.getElementById('btnCloseHelp');
   const btnExportText = document.getElementById('btnExportText');
   
-  // --- 獲取新元素 (ID 已更新) ---
   const btnToggle12hr = document.getElementById('btnToggle12hr');
   const btnToggle24hr = document.getElementById('btnToggle24hr');
   const markerInfoModal = document.getElementById('markerInfoModal');
   const btnCloseMarkerInfo = document.getElementById('btnCloseMarkerInfo');
   const btnDeleteMarker = document.getElementById('btnDeleteMarker');
+
+  const btnShowFilter = document.getElementById('btnShowFilter');
+  const filterModal = document.getElementById('filterModal');
+  const btnApplyFilter = document.getElementById('btnApplyFilter');
+  const btnClearFilter = document.getElementById('btnClearFilter');
+  const btnCancelFilter = document.getElementById('btnCancelFilter');
+  const filterTypeRadios = document.querySelectorAll('input[name="filterType"]');
+  const filterOptions12hr = document.getElementById('filterOptions12hr');
+  const filterOptions24hr = document.getElementById('filterOptions24hr');
+
 
   let currentGrid = document.getElementById('grid');
   let isAnimating = false;
@@ -839,15 +992,13 @@ document.addEventListener('DOMContentLoaded', () => {
   mainWrap.style.position = 'relative';
   mainWrap.style.overflowX = 'hidden';
 
-  if (!currentGrid || !btnToggle12hr || !btnToggle24hr || !markerInfoModal) {
+  if (!currentGrid || !btnToggle12hr || !btnToggle24hr || !markerInfoModal || !btnShowFilter) {
       console.error('Initialization failed: Missing critical DOM elements.');
       return;
   }
   
-  // --- 初始化按鈕狀態 (已更新) ---
   btnToggle12hr.dataset.on = showFiveTeam ? '1' : '0';
   btnToggle24hr.dataset.on = showThreeTeam ? '1' : '0';
-
 
   const t = new Date(TODAY_ISO+'T00:00:00');
   const startYear = t.getFullYear();
@@ -914,8 +1065,7 @@ document.addEventListener('DOMContentLoaded', () => {
   nextM.addEventListener('click', () => changeMonth(1));
   
   monthPick.addEventListener('change', () => {
-      if (isAnimating) { // <-- Add guard
-          // Revert to the month that is currently on screen
+      if (isAnimating) {
           if (currentGrid.dataset.year && currentGrid.dataset.monthIndex) {
               const y_s = currentGrid.dataset.year;
               const m_idx_s = currentGrid.dataset.monthIndex;
@@ -927,17 +1077,9 @@ document.addEventListener('DOMContentLoaded', () => {
       render(currentGrid, y, m - 1);
   });
 
-  // A-E 篩選
-  chips.forEach(c=>c.addEventListener('click', ()=>{
-    if (isAnimating) return; // <-- Add guard
-    c.dataset.on = c.dataset.on==='1' ? '0' : '1';
-    const [y, m] = monthPick.value.split('-').map(Number);
-    render(currentGrid, y, m - 1);
-  }));
-
   // 輸出 CSV
   btnExport.addEventListener('click', ()=>{
-    if (isAnimating) return; // <-- Add guard
+    if (isAnimating) return;
     const isoDatesWithNotes = Object.keys(dailyNotes).filter(iso => dailyNotes[iso] && dailyNotes[iso].trim() !== '');
     if(isoDatesWithNotes.length === 0 && Object.keys(customMarkers).length === 0){ 
       showModal('請先輸入至少一項備註或標記。');
@@ -958,7 +1100,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // 新增標記 Modal
   btnAddMarker.addEventListener('click', () => { 
-    if (isAnimating) return; // <-- Add guard
+    if (isAnimating) return;
     showMarkerModal(); 
   });
   btnCancelMarker.addEventListener('click', closeMarkerModal);
@@ -985,7 +1127,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // 幫助 Modal
   btnHelp.addEventListener('click', () => {
-    if (isAnimating) return; // <-- Add guard
+    if (isAnimating) return;
     showHelpModal();
   });
   btnCloseHelp.addEventListener('click', closeHelpModal);
@@ -993,23 +1135,21 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target === helpModal) closeHelpModal();
   });
   
-  // --- 12/24小時 切換事件 (ID 已更新) ---
+  // --- 12/24小時 切換事件 ---
   btnToggle12hr.addEventListener('click', () => {
-      if (isAnimating) return; // <-- Add guard
+      if (isAnimating) return;
       showFiveTeam = !showFiveTeam;
       btnToggle12hr.dataset.on = showFiveTeam ? '1' : '0';
       
-      // Call render() 
       const [y, m] = monthPick.value.split('-').map(Number);
       render(currentGrid, y, m - 1);
   });
 
   btnToggle24hr.addEventListener('click', () => {
-      if (isAnimating) return; // <-- Add guard
+      if (isAnimating) return;
       showThreeTeam = !showThreeTeam;
       btnToggle24hr.dataset.on = showThreeTeam ? '1' : '0';
 
-      // Call render()
       const [y, m] = monthPick.value.split('-').map(Number);
       render(currentGrid, y, m - 1);
   });
@@ -1024,15 +1164,52 @@ document.addEventListener('DOMContentLoaded', () => {
           delete customMarkers[currentMarkerISO];
           saveData();
           closeMarkerInfoModal();
-          // 重新 render 嚟移除標記
           const [y, m] = monthPick.value.split('-').map(Number);
           render(currentGrid, y, m - 1);
       }
   });
   
-  // --- 輸出文字 (已更新) ---
+  // --- 新增：篩選 Modal 事件 ---
+  btnShowFilter.addEventListener('click', () => {
+      if (isAnimating) return;
+      showFilterModal();
+  });
+
+  filterTypeRadios.forEach(radio => {
+      radio.addEventListener('change', (e) => {
+          // --- (FIX) 修正 'e.g.target' 錯誤 ---
+          filterOptions12hr.style.display = (e.target.value === '12hr') ? 'block' : 'none';
+          filterOptions24hr.style.display = (e.target.value === '24hr') ? 'block' : 'none';
+      });
+  });
+
+  btnCancelFilter.addEventListener('click', closeFilterModal);
+  filterModal.addEventListener('click', (e) => {
+      if (e.target === filterModal) closeFilterModal();
+  });
+
+  btnClearFilter.addEventListener('click', () => {
+      filterState = { type: 'none', letter12: 'none', number12: 'none', letter24: 'none' };
+      closeFilterModal();
+      const [y, m] = monthPick.value.split('-').map(Number);
+      render(currentGrid, y, m - 1);
+  });
+  
+  btnApplyFilter.addEventListener('click', () => {
+      filterState.type = document.querySelector('input[name="filterType"]:checked').value;
+      filterState.letter12 = document.querySelector('input[name="filter12Letter"]:checked').value;
+      filterState.number12 = document.querySelector('input[name="filter12Number"]:checked').value;
+      filterState.letter24 = document.querySelector('input[name="filter24Letter"]:checked').value;
+      
+      closeFilterModal();
+      const [y, m] = monthPick.value.split('-').map(Number);
+      render(currentGrid, y, m - 1);
+  });
+
+
+  // --- 輸出文字 ---
   btnExportText.addEventListener('click', () => {
-      if (isAnimating) return; // <-- Add guard
+      if (isAnimating) return;
       const allIsoDates = new Set([
           ...Object.keys(dailyNotes).filter(iso => dailyNotes[iso] && dailyNotes[iso].trim() !== ''), 
           ...Object.keys(customMarkers)
@@ -1057,9 +1234,8 @@ document.addEventListener('DOMContentLoaded', () => {
           const holidayMap = getHolidayMapForYear(year);
           const holiday = holidayMap.get(iso);
 
-          // --- 導出兩種排序 ---
           const tripFive = triplet(iso);
-          const tripThree = tripletThreeTeam(iso); // 已用新邏輯
+          const tripThree = tripletThreeTeam(iso);
 
           output += `${iso} (${weekday})\n`;
           
