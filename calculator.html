@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>ABCDE 月曆（備註版）</title>
+<!-- --- 修改：移除 hk-holidays library --- -->
 <style>
   :root{
     --bg: #0b1220;
@@ -61,8 +62,11 @@
     border: none;
   }
   .btn-help {
-    padding: 6px 10px;
-    font-size: 13px;
+    /* --- 修改：按鈕改為黃色 --- */
+    background: var(--today);
+    color: var(--bg);
+    font-weight: 600;
+    border: none;
   }
   
   .title {
@@ -337,17 +341,14 @@
 <div class="modal-backdrop" id="helpModal">
   <div class="modal-content">
     <h3>使用說明</h3>
+    <!-- --- 修改：說明文字改為書面語 --- -->
     <ul>
-      <li><b>A-E 篩選</b>: 點擊 <code>A</code>-<code>E</code> 任何一個，日曆會高亮顯示所有包含該字母嘅日子 (e.g. 篩選 "D" 會顯示 "D1", "C1", "B1")。</li>
-      <li><b>自動儲存</b>: 喺格仔底部輸入嘅「備註」會自動儲存喺你嘅瀏覽器，下次開返都會喺度。</li>
-      <li><b>紅日假期</b>: 左邊有 <code>紅色</code>
-        邊嘅係香港公眾假期，點擊格仔可以睇係咩假。</li>
-      <li><b>自訂標記</b>: 點擊 <code>+ 標記</code>
-        掣，可以揀日期、顏色 (藍/綠) 同說明。標記咗嘅日子會有顏色邊，點擊格仔可以睇返你嘅說明。</li>
-      <li><b>複製文字</b>: 點擊 <code>複製文字</code>
-        會將你 *所有* 嘅備註同標記，整合成適合 WhatsApp 嘅文字格式，並複製到剪貼簿。</li>
-      <li><b>輸出 CSV</b>: 點擊 <code>輸出 CSV</code>
-        會下載一個 .csv 檔案，只包含 *有備註* 嘅日子，方便喺 Excel 或 Google Sheets 開啟。</li>
+      <li><b>週期篩選 (A-E)</b>: 點擊 <code>A</code> 至 <code>E</code> 按鈕，日曆將高亮顯示所有包含該字母的工作週期日 (例如：篩選 "D" 將顯示 "D1", "C1", 及 "B1")。</li>
+      <li><b>自動儲存</b>: 在日期格底部輸入的「備註」，將會自動儲存於您的瀏覽器中，下次開啟時資料將自動載入。</li>
+      <li><b>公眾假期</b>: 左側帶有<code>紅色</code>邊框的日期為香港公眾假期，點擊該日期格可查看假期名稱。</li>
+      <li><b>自訂標記</b>: 點擊 <code>+ 標記</code> 按鈕，即可選定日期、顏色 (藍/綠) 及輸入說明。已標記的日期將顯示相應顏色邊框，點擊後可查閱該說明。</li>
+      <li><b>輸出文字</b>: 點擊 <code>輸出文字</code> 按鈕，系統會將 *所有* 備註及標記整合為純文字格式 (適合即時通訊軟件)，並自動複製到剪貼簿。</li>
+      <li><b>輸出 CSV</b>: 點擊 <code>輸出 CSV</code> 按鈕，系統將導出一個 .csv 檔案，此檔案僅包含 *已填寫備註* 的日期，方便使用 Excel 或 Google Sheets 進行後續處理。</li>
     </ul>
     <button id="btnCloseHelp">明白</button>
   </div>
@@ -361,29 +362,72 @@ const TODAY_ISO = '2025-11-09';
 const ANCHOR_LETTER = 'C';
 const ANCHOR_NUMBER = 6;
 
-// ---- 2025 香港公眾假期 ----
-const HK_HOLIDAYS_2025 = new Map([
-  ['2025-01-01', '元旦'],
-  ['2025-01-29', '農曆年初一'],
-  ['2025-01-30', '農曆年初二'],
-  ['2025-01-31', '農曆年初三'],
-  ['2025-04-04', '清明節'],
-  ['2025-04-18', '耶穌受難節'],
-  ['2025-04-19', '耶穌受難節翌日'],
-  ['2025-04-21', '復活節星期一'],
-  ['2025-05-01', '勞動節'],
-  ['2025-05-05', '佛誕'],
-  ['2025-05-31', '端午節'],
-  ['2025-07-01', '香港特區成立紀念日'],
-  ['2025-10-01', '國慶日'],
-  ['2025-10-07', '重陽節翌日'], 
-  ['2025-12-25', '聖誕節'],
-  ['2025-12-26', '聖誕節後第一個周日']
-]);
+// --- 新增：內置假期資料庫 (2024-2026) ---
+// (取代 hk-holidays library)
+const HOLIDAY_DATA = {
+    "2024": {
+        "2024-01-01": "元旦",
+        "2024-02-10": "農曆年初一",
+        "2024-02-12": "農曆年初三",
+        "2024-02-13": "農曆年初四",
+        "2024-03-29": "耶穌受難節",
+        "2024-03-30": "耶穌受難節翌日",
+        "2024-04-01": "復活節星期一",
+        "2024-04-04": "清明節",
+        "2024-05-01": "勞動節",
+        "2024-05-15": "佛誕",
+        "2024-06-10": "端午節",
+        "2024-07-01": "香港特別行政區成立紀念日",
+        "2024-09-18": "中秋節翌日",
+        "2024-10-01": "國慶日",
+        "2024-10-11": "重陽節",
+        "2024-12-25": "聖誕節",
+        "2024-12-26": "聖誕節後第一個周日"
+    },
+    "2025": {
+        "2025-01-01": "元旦",
+        "2025-01-29": "農曆年初一",
+        "2025-01-30": "農曆年初二",
+        "2025-01-31": "農曆年初三",
+        "2025-04-18": "耶穌受難節",
+        "2025-04-19": "耶穌受難節翌日",
+        "2025-04-21": "復活節星期一",
+        "2025-04-04": "清明節",
+        "2025-05-01": "勞動節",
+        "2025-05-05": "佛誕",
+        "2025-05-31": "端午節",
+        "2025-07-01": "香港特別行政區成立紀念日",
+        "2025-10-01": "國慶日",
+        "2025-10-07": "中秋節翌日",
+        "2025-10-30": "重陽節",
+        "2025-12-25": "聖誕節",
+        "2025-12-26": "聖誕節後第一個周日"
+    },
+    "2026": {
+        "2026-01-01": "元旦",
+        "2026-02-17": "農曆年初一",
+        "2026-02-18": "農曆年初二",
+        "2026-02-19": "農曆年初三",
+        "2026-04-03": "耶穌受難節",
+        "2026-04-04": "耶穌受難節翌日",
+        "2026-04-06": "復活節星期一",
+        "2026-04-04": "清明節", // 清明節與耶穌受難節翌日重疊
+        "2026-05-01": "勞動節",
+        "2026-05-25": "佛誕",
+        "2026-06-19": "端午節",
+        "2026-07-01": "香港特別行政區成立紀念日",
+        "2026-09-26": "中秋節翌日",
+        "2026-10-01": "國慶日",
+        "2026-10-02": "國慶日翌日",
+        "2026-10-19": "重陽節",
+        "2026-12-25": "聖誕節"
+    }
+};
 
 // ---- Global 數據儲存 ----
 let dailyNotes = {}; 
 let customMarkers = {};
+let holidaysCache = new Map(); 
 
 // ---- 儲存/讀取功能 ----
 function saveData() {
@@ -493,13 +537,39 @@ function copyToClipboard(text) {
     document.body.removeChild(ta);
 }
 
-// ---- 核心 Render 函數 (不變) ----
+// --- 修改：假期計算函數 (用內置資料) ---
+function getHolidayMapForYear(year) {
+    const yearStr = String(year);
+    if (holidaysCache.has(yearStr)) {
+        return holidaysCache.get(yearStr);
+    }
+    
+    // 檢查內置資料
+    if (HOLIDAY_DATA[yearStr]) {
+        const holidayMap = new Map();
+        for (const [iso, name] of Object.entries(HOLIDAY_DATA[yearStr])) {
+            holidayMap.set(iso, name);
+        }
+        holidaysCache.set(yearStr, holidayMap);
+        return holidayMap;
+    } else {
+        // 如果年份超出範圍 (e.g. 2027)
+        return new Map();
+    }
+}
+
+
+// ---- Kall 核心 Render 函數 (已更新) ----
 function render(targetGrid, y, m_idx){
   const title = document.getElementById('title');
   targetGrid.innerHTML = '';
   if (isNaN(y) || isNaN(m_idx)) { return; }
   
   title.textContent = new Date(y, m_idx, 1).toLocaleString('zh-HK',{year:'numeric', month:'long'});
+  
+  // --- call 新嘅 holiday function ---
+  const yearHolidayMap = getHolidayMapForYear(y);
+  
   const base = firstCellDate(y, m_idx);
   const filter = currentFilter();
   
@@ -509,7 +579,9 @@ function render(targetGrid, y, m_idx){
     const inMonth = d.getMonth()===m_idx;
     const {letter, number} = letterNumFor(iso);
     const trip = triplet(letter, number);
-    const holiday = HK_HOLIDAYS_2025.get(iso) || '';
+    
+    // --- 修改：用新 map 攞 holiday ---
+    const holiday = yearHolidayMap.get(iso) || ''; 
     const marker = customMarkers[iso];
 
     const cell = document.createElement('div');
@@ -766,7 +838,11 @@ document.addEventListener('DOMContentLoaded', () => {
           const weekday = d.toLocaleDateString('zh-HK', { weekday: 'short' });
           const note = dailyNotes[iso];
           const marker = customMarkers[iso];
-          const holiday = HK_HOLIDAYS_2025.get(iso);
+          
+          // --- 修改：動態攞 holiday ---
+          const year = d.getFullYear();
+          const holidayMap = getHolidayMapForYear(year); // 會用 cache
+          const holiday = holidayMap.get(iso);
 
           output += `${iso} (${weekday})\n`;
           
@@ -789,6 +865,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   // --- 初始 Render ---
+  // (唔再需要等 library, 直接 render)
   render(currentGrid, startYear, startMonthIndex);
 });
 </script>
