@@ -1,504 +1,799 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-HK">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calc Fusion</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f0f4f8;
-            color: #2d3748;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-        }
-        .calculator-container {
-            width: 100%;
-            max-width: 400px;
-            margin: auto;
-            background-color: #fff;
-            border-radius: 20px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            min-height: 80vh;
-        }
-        .header {
-            background-color: #4c51bf;
-            color: #fff;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            border-radius: 20px 20px 0 0;
-        }
-        .header h1 {
-            font-size: 2.25rem;
-            font-weight: 700;
-            margin-left: 10px;
-        }
-        .main-content {
-            padding: 20px;
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-        }
-        .display-area {
-            background-color: #e2e8f0;
-            border-radius: 12px;
-            padding: 15px;
-            margin-bottom: 20px;
-            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        .history {
-            text-align: right;
-            color: #718096;
-            font-size: 1.2rem;
-            min-height: 24px;
-        }
-        .input-display {
-            text-align: right;
-            font-size: 2.5rem;
-            font-weight: 700;
-            overflow-x: auto;
-            white-space: nowrap;
-        }
-        .keyboard {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 12px;
-            padding: 20px;
-            background-color: #f0f4f8;
-        }
-        .btn {
-            padding: 20px;
-            font-size: 1.5rem;
-            font-weight: 700;
-            border-radius: 15px;
-            border: none;
-            cursor: pointer;
-            transition: transform 0.1s ease-in-out, box-shadow 0.1s ease-in-out;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-        .btn:active {
-            transform: translateY(2px);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        .btn-blue { background-color: #4c51bf; color: #fff; }
-        .btn-purple { background-color: #6b46c1; color: #fff; }
-        .btn-green { background-color: #38a169; color: #fff; }
-        .btn-red { background-color: #e53e3e; color: #fff; }
-        .btn-gray { background-color: #cbd5e0; color: #2d3748; }
-        .btn-wide { grid-column: span 2; }
-        .btn-small { padding: 12px; } /* 新增小型按鈕樣式 */
-        .page {
-            display: none;
-            padding: 20px;
-            flex-direction: column;
-            gap: 20px;
-        }
-        .page.active { display: flex; }
-        .input-group {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        .input-group label {
-            font-size: 1.2rem;
-            font-weight: 600;
-        }
-        .input-group input, .input-group select {
-            padding: 12px;
-            border-radius: 8px;
-            border: 1px solid #cbd5e0;
-            font-size: 1.2rem;
-        }
-        .swap-btn {
-            background-color: #4c51bf;
-            color: #fff;
-            padding: 12px;
-            border-radius: 8px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: background-color 0.2s;
-            text-align: center;
-        }
-        .swap-btn:hover { background-color: #3f479c; }
-    </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ABCDE 月曆（備註版）</title>
+<style>
+  :root{
+    --bg: #0b1220;
+    --panel: rgba(255,255,255,.08);
+    --card: rgba(255,255,255,.12);
+    --stroke: rgba(255,255,255,.18);
+    --txt: #f6f7fb;
+    --muted: #c5cbd6;
+    --accent: #7dd3fc;
+    --today: #ffd166;
+    --weekbar: #364156;
+    --holiday: #e11d48;
+    --marker-blue: #3b82f6;
+    --marker-green: #22c55e;
+  }
+  *{box-sizing:border-box}
+  body{ margin:0; font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang HK",
+        "Noto Sans HK","Microsoft JhengHei",Segoe UI,Roboto,Arial,sans-serif;
+        background: linear-gradient(180deg, #0a0f19, #0b1220 30%, #0b1220 100%); color:var(--txt); }
+  header{ position:sticky; top:0; z-index:5; background: rgba(11,18,32,.75);
+          backdrop-filter: blur(10px); border-bottom:1px solid var(--stroke); }
+  .wrap{ max-width:1100px; margin:0 auto; padding:12px; }
+  
+  .top-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    width: 100%;
+  }
+  .top-filters {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    width: 100%;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .chip-group {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  /* --- 修改：按鈕佈局 --- */
+  .button-group {
+    display: flex;
+    gap: 10px;
+    margin-left: auto; /* 將所有按鈕推到最右 */
+    flex-shrink: 0;
+  }
+  .btn-add-marker {
+    padding: 6px 10px;
+    font-size: 13px;
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+  }
+  .btn-help {
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+  
+  .title {
+    flex-grow: 1;
+    text-align: center;
+  }
+  
+  .navbtn{ 
+    background: var(--panel); border:1px solid var(--stroke); padding:8px;
+    border-radius:10px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    flex-shrink: 0;
+  }
+  .title{ font-weight:700; letter-spacing:.5px; padding:6px 10px; border-radius:10px; background:var(--panel); border:1px solid var(--stroke); }
+  input[type="month"]{ background:transparent; color:var(--txt); border:1px dashed var(--stroke); border-radius:10px; padding:8px 10px; outline:none; flex-shrink: 0; }
+  .chip{ padding:6px 12px; border-radius:999px; background: var(--panel); border:1px solid var(--stroke); cursor:pointer; user-select:none; }
+  .chip[data-on="1"]{ outline:2px solid var(--accent); }
+  .btn{ padding:8px 12px; border-radius:10px; border:1px solid var(--stroke); background:var(--panel); color:var(--txt); cursor:pointer; }
+  .btn:hover{ outline:2px solid var(--accent); }
+  
+  .weekbar{ display:grid; grid-template-columns: repeat(7,1fr); background: var(--weekbar); border-radius:10px; overflow:hidden; margin-top:10px; }
+  .weekbar div{ text-align:center; padding:8px 0; font-size:12px; color:#e7eaf1; transition: color 0.2s; }
+  .weekbar div.is-today {
+    color: var(--today);
+    font-weight: 700;
+  }
+  
+  .grid{ display:grid; grid-template-columns: repeat(7,1fr); gap:6px; margin-top:8px; }
+  .cell{ min-height:120px; background: var(--card); border:1px solid var(--stroke); border-radius:10px; padding:8px;
+         display:flex; flex-direction:column; gap:6px; transition: opacity .2s, border-color .2s; cursor:pointer; }
+  .cell.dim{ opacity:.35; }
+  
+  .cell.filtered-dim { opacity: .35; }
+  
+  .dhead{ display:flex; align-items:center; justify-content:space-between; }
+  .dnum{ font-weight:700; }
+  .dnum.today{ outline:2px solid var(--today); border-radius:8px; padding:2px 6px; }
+
+  .cell.is-holiday {
+    border-left: 3px solid var(--holiday);
+    padding-left: 6px;
+  }
+  .cell.is-marker {
+    border-left-width: 3px;
+    padding-left: 6px;
+  }
+
+  .trip{ display:flex; flex-direction:column; gap:2px; }
+  .code{ font-weight:800; letter-spacing:.3px; }
+  .A{ color:#3b82f6;} .B{ color:#f59e0b;} .C{ color:#22c55e;} .D{ color:#8b5cf6;} .E{ color:#fb7185;}
+  .notes-input{
+    margin-top:auto;
+    width:100%;
+    background: var(--panel);
+    border:1px solid var(--stroke);
+    border-radius:6px;
+    color: var(--txt);
+    padding:4px 6px;
+    font-size:11px;
+    outline: none;
+    cursor:text;
+  }
+  .notes-input::placeholder{ color: var(--muted); opacity: 0.6; }
+  .notes-input:focus{ outline:1px solid var(--accent); }
+
+  .modal-backdrop {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 100;
+    display: flex; justify-content: center; align-items: center;
+    opacity: 0; pointer-events: none; transition: opacity .2s;
+  }
+  .modal-backdrop.show {
+    opacity: 1; pointer-events: auto;
+  }
+  .modal-content {
+    background: #1c2536;
+    border: 1px solid var(--stroke);
+    border-radius: 12px;
+    padding: 20px;
+    min-width: 300px;
+    max-width: 90%;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  }
+  .modal-content p {
+    text-align: center;
+    margin-top: 0;
+  }
+  .modal-content button {
+    margin-top: 15px;
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  
+  .modal-content h3 {
+    margin-top: 0;
+    text-align: left;
+  }
+  /* --- 新增：Help Modal 樣式 --- */
+  .modal-content ul {
+    text-align: left;
+    padding-left: 20px;
+    color: var(--muted);
+  }
+  .modal-content li {
+    margin-bottom: 10px;
+    line-height: 1.5;
+  }
+  .modal-content code {
+    background: var(--panel);
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-size: 0.9em;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-bottom: 15px;
+    text-align: left;
+  }
+  .form-group label {
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .form-group input, .form-group select {
+    background: var(--panel);
+    border: 1px solid var(--stroke);
+    border-radius: 8px;
+    padding: 8px 10px;
+    color: var(--txt);
+    outline: none;
+  }
+  .form-group input:focus, .form-group select:focus {
+    outline: 1px solid var(--accent);
+  }
+  .color-select {
+    display: flex;
+    gap: 10px;
+  }
+  .color-select label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+  }
+  .color-dot {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+  }
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+  }
+  .modal-actions button.secondary {
+    background: var(--panel);
+    color: var(--txt);
+  }
+  
+  @keyframes bounce-in-right {
+      0% { transform: translateX(100%); opacity: 0; }
+      60% { transform: translateX(-10%); opacity: 1; }
+      80% { transform: translateX(5%); }
+      100% { transform: translateX(0%); }
+  }
+  @keyframes bounce-out-left {
+      0% { transform: translateX(0%); opacity: 1; }
+      100% { transform: translateX(-100%); opacity: 0; }
+  }
+  @keyframes bounce-in-left {
+      0% { transform: translateX(-100%); opacity: 0; }
+      60% { transform: translateX(10%); opacity: 1; }
+      80% { transform: translateX(-5%); }
+      100% { transform: translateX(0%); }
+  }
+  @keyframes bounce-out-right {
+      0% { transform: translateX(0%); opacity: 1; }
+      100% { transform: translateX(100%); opacity: 0; }
+  }
+
+  .grid.animate-in-right { animation: bounce-in-right 0.4s ease-out forwards; }
+  .grid.animate-out-left { animation: bounce-out-left 0.4s ease-out forwards; }
+  .grid.animate-in-left { animation: bounce-in-left 0.4s ease-out forwards; }
+  .grid.animate-out-right { animation: bounce-out-right 0.4s ease-out forwards; }
+  
+</style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen">
-
-    <div class="calculator-container">
-        <!-- Header with title and icon -->
-        <div class="header">
-            <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm2 2a1 1 0 00-1 1v2a1 1 0 001 1h2a1 1 0 001-1V7a1 1 0 00-1-1H5zm0 4a1 1 0 00-1 1v2a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 00-1-1H5zm4-4a1 1 0 00-1 1v2a1 1 0 001 1h2a1 1 0 001-1V7a1 1 0 00-1-1h-2zm0 4a1 1 0 00-1 1v2a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 00-1-1h-2zm4-4a1 1 0 00-1 1v2a1 1 0 001 1h2a1 1 0 001-1V7a1 1 0 00-1-1h-2zm0 4a1 1 0 00-1 1v2a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 00-1-1h-2z" clip-rule="evenodd"></path>
-            </svg>
-            <h1>Calc Fusion</h1>
-        </div>
-
-        <!-- Main content area -->
-        <div class="main-content">
-            <!-- Navigation for pages -->
-            <div class="flex justify-around mb-4 text-sm">
-                <button id="nav-calc" class="p-2 flex-1 rounded-lg font-bold text-white bg-blue-500 hover:bg-blue-600 transition-colors mx-1">計算機</button>
-                <button id="nav-weight" class="p-2 flex-1 rounded-lg font-bold text-gray-700 bg-gray-200 hover:bg-gray-300 transition-colors mx-1">重量換算</button>
-                <button id="nav-length" class="p-2 flex-1 rounded-lg font-bold text-gray-700 bg-gray-200 hover:bg-gray-300 transition-colors mx-1">長度換算</button>
-                <button id="nav-date" class="p-2 flex-1 rounded-lg font-bold text-gray-700 bg-gray-200 hover:bg-gray-300 transition-colors mx-1">日期計算</button>
-            </div>
-
-            <!-- Calculator page -->
-            <div id="calculator-page" class="page active flex-grow">
-                <div class="display-area mb-4">
-                    <div id="history" class="history"></div>
-                    <div id="input" class="input-display">0</div>
-                </div>
-                <div class="keyboard flex-grow">
-                    <button class="btn btn-red btn-small" onclick="handleClear('reset')">AC</button>
-                    <button class="btn btn-red btn-small" onclick="handleClear('delete')">DEL</button>
-                    <button class="btn btn-blue" onclick="handleInput('(')">(</button>
-                    <button class="btn btn-blue" onclick="handleInput(')')">)</button>
-                    <button class="btn btn-gray" onclick="handleInput('7')">7</button>
-                    <button class="btn btn-gray" onclick="handleInput('8')">8</button>
-                    <button class="btn btn-gray" onclick="handleInput('9')">9</button>
-                    <button class="btn btn-purple" onclick="handleInput('/')">/</button>
-                    <button class="btn btn-gray" onclick="handleInput('4')">4</button>
-                    <button class="btn btn-gray" onclick="handleInput('5')">5</button>
-                    <button class="btn btn-gray" onclick="handleInput('6')">6</button>
-                    <button class="btn btn-purple" onclick="handleInput('*')">×</button>
-                    <button class="btn btn-gray" onclick="handleInput('1')">1</button>
-                    <button class="btn btn-gray" onclick="handleInput('2')">2</button>
-                    <button class="btn btn-gray" onclick="handleInput('3')">3</button>
-                    <button class="btn btn-purple" onclick="handleInput('-')">−</button>
-                    <button class="btn btn-gray btn-wide" onclick="handleInput('0')">0</button>
-                    <button class="btn btn-gray" onclick="handleInput('.')">.</button>
-                    <button class="btn btn-purple" onclick="handleInput('+')">+</button>
-                    <button class="btn btn-green btn-wide" onclick="calculate()">=</button>
-                </div>
-                <div class="text-center text-sm text-gray-500 mt-4">
-                    <span id="datetime"></span>
-                </div>
-            </div>
-
-            <!-- Weight Converter page -->
-            <div id="weight-page" class="page">
-                <div class="input-group">
-                    <label for="weight-input1">輸入數值</label>
-                    <input type="number" id="weight-input1" oninput="convertWeight()">
-                    <select id="weight-unit1" onchange="convertWeight()">
-                        <option value="kg">公斤 (kg)</option>
-                        <option value="g">克 (g)</option>
-                        <option value="lb">磅 (lb)</option>
-                        <option value="oz">安士 (oz)</option>
-                    </select>
-                </div>
-                <div class="flex justify-center">
-                    <button id="swap-weight" class="swap-btn">調換單位</button>
-                </div>
-                <div class="input-group">
-                    <label for="weight-result">換算結果</label>
-                    <input type="number" id="weight-result" readonly>
-                    <select id="weight-unit2" onchange="convertWeight()">
-                        <option value="g">克 (g)</option>
-                        <option value="kg">公斤 (kg)</option>
-                        <option value="oz">安士 (oz)</option>
-                        <option value="lb">磅 (lb)</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Length Converter page -->
-            <div id="length-page" class="page">
-                <div class="input-group">
-                    <label for="length-input1">輸入數值</label>
-                    <input type="number" id="length-input1" oninput="convertLength()">
-                    <select id="length-unit1" onchange="convertLength()">
-                        <option value="m">米 (m)</option>
-                        <option value="km">公里 (km)</option>
-                        <option value="cm">厘米 (cm)</option>
-                        <option value="mm">毫米 (mm)</option>
-                        <option value="inch">吋 (in)</option>
-                        <option value="ft">呎 (ft)</option>
-                        <option value="mile">英里 (mi)</option>
-                    </select>
-                </div>
-                <div class="flex justify-center">
-                    <button id="swap-length" class="swap-btn">調換單位</button>
-                </div>
-                <div class="input-group">
-                    <label for="length-result">換算結果</label>
-                    <input type="number" id="length-result" readonly>
-                    <select id="length-unit2" onchange="convertLength()">
-                        <option value="km">公里 (km)</option>
-                        <option value="m">米 (m)</option>
-                        <option value="cm">厘米 (cm)</option>
-                        <option value="mm">毫米 (mm)</option>
-                        <option value="ft">呎 (ft)</option>
-                        <option value="inch">吋 (in)</option>
-                        <option value="mile">英里 (mi)</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Date Calculator page -->
-            <div id="date-page" class="page">
-                <div class="input-group">
-                    <label for="start-date">開始日期</label>
-                    <input type="date" id="start-date" class="p-2 border rounded-lg">
-                </div>
-                <div class="input-group">
-                    <label for="end-date">結束日期</label>
-                    <input type="date" id="end-date" class="p-2 border rounded-lg">
-                </div>
-                <button id="calculate-date" class="swap-btn mt-4">計算日期</button>
-                <div id="date-result" class="mt-4 text-center font-bold text-lg"></div>
-            </div>
-
-        </div>
+<body>
+<header>
+  <div class="wrap">
+    <div class="top-controls">
+      <button class="navbtn" id="prevM">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+      </button>
+      <div class="title" id="title"></div>
+      <button class="navbtn" id="nextM">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+      </button>
+      <input type="month" id="monthPick">
     </div>
+    <div class="top-filters">
+      <div class="chip-group">
+        <div class="chip" data-on="0" data-letter="A">A</div>
+        <div class="chip" data-on="0" data-letter="B">B</div>
+        <div class="chip" data-on="0" data-letter="C">C</div>
+        <div class="chip" data-on="0" data-letter="D">D</div>
+        <div class="chip" data-on="0" data-letter="E">E</div>
+      </div>
+      <!-- --- 修改：按鈕 group --- -->
+      <div class="button-group">
+        <button class="btn btn-help" id="btnHelp">說明</button>
+        <button class="btn btn-add-marker" id="btnAddMarker">+ 標記</button>
+        <button class="btn" id="btnExportText">輸出文字</button>
+        <button class="btn" id="btnExport">輸出 CSV</button>
+      </div>
+    </div>
+    <div class="weekbar" id="weekbar">
+      <div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div>
+    </div>
+  </div>
+</header>
 
-    <script>
-        // DOM 元素
-        const displayInput = document.getElementById('input');
-        const displayHistory = document.getElementById('history');
-        const calcPage = document.getElementById('calculator-page');
-        const weightPage = document.getElementById('weight-page');
-        const lengthPage = document.getElementById('length-page');
-        const datePage = document.getElementById('date-page');
-        const navCalc = document.getElementById('nav-calc');
-        const navWeight = document.getElementById('nav-weight');
-        const navLength = document.getElementById('nav-length');
-        const navDate = document.getElementById('nav-date');
-        const datetimeDisplay = document.getElementById('datetime');
+<main class="wrap" id="mainWrap">
+  <div class="grid" id="grid"></div>
+</main>
 
-        // 單位換算元素
-        const weightInput1 = document.getElementById('weight-input1');
-        const weightUnit1 = document.getElementById('weight-unit1');
-        const weightUnit2 = document.getElementById('weight-unit2');
-        const weightResult = document.getElementById('weight-result');
-        const swapWeightBtn = document.getElementById('swap-weight');
+<div class="modal-backdrop" id="customAlert">
+  <div class="modal-content">
+    <p id="customAlertMsg"></p>
+    <button id="customAlertClose">明白</button>
+  </div>
+</div>
 
-        const lengthInput1 = document.getElementById('length-input1');
-        const lengthUnit1 = document.getElementById('length-unit1');
-        const lengthUnit2 = document.getElementById('length-unit2');
-        const lengthResult = document.getElementById('length-result');
-        const swapLengthBtn = document.getElementById('swap-length');
+<div class="modal-backdrop" id="markerModal">
+  <div class="modal-content">
+    <h3>新增自訂標記</h3>
+    <div class="form-group">
+      <label for="markerDate">日期</label>
+      <input type="date" id="markerDate">
+    </div>
+    <div class="form-group">
+      <label for="markerDesc">說明</label>
+      <input type="text" id="markerDesc" placeholder="e.g. 覆診">
+    </div>
+    <div class="form-group">
+      <label>顏色</label>
+      <div class="color-select">
+        <label>
+          <input type="radio" name="markerColor" value="blue" checked>
+          <span class="color-dot" style="background: var(--marker-blue);"></span> 藍色
+        </label>
+        <label>
+          <input type="radio" name="markerColor" value="green">
+          <span class="color-dot" style="background: var(--marker-green);"></span> 綠色
+        </label>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="secondary" id="btnCancelMarker">取消</button>
+      <button id="btnSaveMarker">儲存</button>
+    </div>
+  </div>
+</div>
 
-        const startDateInput = document.getElementById('start-date');
-        const endDateInput = document.getElementById('end-date');
-        const calculateDateBtn = document.getElementById('calculate-date');
-        const dateResultDiv = document.getElementById('date-result');
+<!-- --- 新增：Help Modal --- -->
+<div class="modal-backdrop" id="helpModal">
+  <div class="modal-content">
+    <h3>使用說明</h3>
+    <ul>
+      <li><b>A-E 篩選</b>: 點擊 <code>A</code>-<code>E</code> 任何一個，日曆會高亮顯示所有包含該字母嘅日子 (e.g. 篩選 "D" 會顯示 "D1", "C1", "B1")。</li>
+      <li><b>自動儲存</b>: 喺格仔底部輸入嘅「備註」會自動儲存喺你嘅瀏覽器，下次開返都會喺度。</li>
+      <li><b>紅日假期</b>: 左邊有 <code>紅色</code>
+        邊嘅係香港公眾假期，點擊格仔可以睇係咩假。</li>
+      <li><b>自訂標記</b>: 點擊 <code>+ 標記</code>
+        掣，可以揀日期、顏色 (藍/綠) 同說明。標記咗嘅日子會有顏色邊，點擊格仔可以睇返你嘅說明。</li>
+      <li><b>複製文字</b>: 點擊 <code>複製文字</code>
+        會將你 *所有* 嘅備註同標記，整合成適合 WhatsApp 嘅文字格式，並複製到剪貼簿。</li>
+      <li><b>輸出 CSV</b>: 點擊 <code>輸出 CSV</code>
+        會下載一個 .csv 檔案，只包含 *有備註* 嘅日子，方便喺 Excel 或 Google Sheets 開啟。</li>
+    </ul>
+    <button id="btnCloseHelp">明白</button>
+  </div>
+</div>
 
-        // 狀態變數
-        let currentInput = '0';
-        let history = '';
-        let lastCharIsOperator = false;
 
-        // 單位換算率
-        const weightRates = {
-            'kg': 1, 'g': 1000, 'lb': 2.20462, 'oz': 35.274
-        };
-        // FIX: Corrected the length conversion rates to be consistent with the weight conversion logic.
-        // The base unit is now 'meter' (m).
-        const lengthRates = {
-            'm': 1,
-            'mm': 1000,
-            'cm': 100,
-            'km': 0.001,
-            'inch': 39.3701,
-            'ft': 3.28084,
-            'mile': 0.000621371
-        };
+<script>
+// ---- 固定規則：今日 2025-11-09 = C6 ----
+const LETTERS = ['A','B','C','D','E'];
+const TODAY_ISO = '2025-11-09';
+const ANCHOR_LETTER = 'C';
+const ANCHOR_NUMBER = 6;
 
-        // 處理計算機按鈕輸入
-        function handleInput(value) {
-            if (currentInput === '0' && value !== '.' && value !== '(') {
-                currentInput = value;
-            } else {
-                currentInput += value;
-            }
-            displayInput.textContent = currentInput;
-            lastCharIsOperator = isOperator(value);
-        }
+// ---- 2025 香港公眾假期 ----
+const HK_HOLIDAYS_2025 = new Map([
+  ['2025-01-01', '元旦'],
+  ['2025-01-29', '農曆年初一'],
+  ['2025-01-30', '農曆年初二'],
+  ['2025-01-31', '農曆年初三'],
+  ['2025-04-04', '清明節'],
+  ['2025-04-18', '耶穌受難節'],
+  ['2025-04-19', '耶穌受難節翌日'],
+  ['2025-04-21', '復活節星期一'],
+  ['2025-05-01', '勞動節'],
+  ['2025-05-05', '佛誕'],
+  ['2025-05-31', '端午節'],
+  ['2025-07-01', '香港特區成立紀念日'],
+  ['2025-10-01', '國慶日'],
+  ['2025-10-07', '重陽節翌日'], 
+  ['2025-12-25', '聖誕節'],
+  ['2025-12-26', '聖誕節後第一個周日']
+]);
 
-        // 清除或刪除
-        function handleClear(type) {
-            if (type === 'reset') {
-                currentInput = '0';
-                history = '';
-                displayHistory.textContent = '';
-            } else if (type === 'delete') {
-                currentInput = currentInput.slice(0, -1);
-                if (currentInput === '') {
-                    currentInput = '0';
-                }
-            }
-            displayInput.textContent = currentInput;
-        }
+// ---- Global 數據儲存 ----
+let dailyNotes = {}; 
+let customMarkers = {};
 
-        // 檢查是否為運算符號
-        function isOperator(char) {
-            return ['+', '-', '*', '/'].includes(char);
-        }
+// ---- 儲存/讀取功能 ----
+function saveData() {
+    try {
+        localStorage.setItem('calendarNotes', JSON.stringify(dailyNotes));
+        localStorage.setItem('calendarMarkers', JSON.stringify(customMarkers));
+    } catch (e) {
+        console.error('Failed to save data', e);
+        showModal('儲存資料時發生錯誤，空間可能已滿。');
+    }
+}
+function loadData() {
+    const notes = localStorage.getItem('calendarNotes');
+    const markers = localStorage.getItem('calendarMarkers');
+    try {
+      if (notes) {
+          dailyNotes = JSON.parse(notes) || {};
+      }
+      if (markers) {
+          customMarkers = JSON.parse(markers) || {};
+      }
+    } catch (e) {
+      console.error('Failed to parse saved data', e);
+      dailyNotes = {};
+      customMarkers = {};
+    }
+}
 
-        // 處理括號隱式乘法並計算
-        function calculate() {
-            // 處理數字後緊接括號的隱式乘法 (e.g., 8(8) -> 8*(8))
-            let sanitizedInput = currentInput.replace(/(\d+)\(/g, '$1*(');
-            // 處理閉括號後緊接開括號的隱式乘法 (e.g., (8)(8) -> (8)*(8))
-            sanitizedInput = sanitizedInput.replace(/\)\(/g, ')*(');
-            // 處理閉括號後緊接數字的隱式乘法 (e.g., (8)8 -> (8)*8)
-            sanitizedInput = sanitizedInput.replace(/\)(\d+)/g, ')*$1');
+// ---- 工具函數 (不變) ----
+function fmtISO(d){
+  const y = d.getFullYear();
+  const m = (d.getMonth() + 1).toString().padStart(2, '0');
+  const day = d.getDate().toString().padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+function daysBetween(aISO,bISO){ return Math.round((new Date(bISO)-new Date(aISO))/86400000); }
+function mod(a,b){ return ((a % b)+b)%b; }
 
-            try {
-                let result = eval(sanitizedInput);
-                history = sanitizedInput + ' = ' + result;
-                currentInput = result.toString();
-                displayHistory.textContent = history;
-                displayInput.textContent = currentInput;
-            } catch (e) {
-                displayInput.textContent = '錯誤';
-                history = '';
-            }
-        }
+function letterNumFor(dateISO){
+  const i0 = LETTERS.indexOf(ANCHOR_LETTER);
+  const n = daysBetween(TODAY_ISO, dateISO);
+  const idx = mod(i0 - n, 5);
+  const wraps = Math.floor((i0 + n)/5);
+  let num = ANCHOR_NUMBER + wraps;
+  num = ((num - 1) % 10 + 10) % 10 + 1;
+  return {letter: LETTERS[idx], number: num};
+}
+function triplet(letter, number){
+  const i = LETTERS.indexOf(letter);
+  return [`${LETTERS[i]}${number}`,`${LETTERS[(i+1)%5]}${number}`,`${LETTERS[(i+2)%5]}${number}`];
+}
+function firstCellDate(y, m){
+  const first = new Date(y, m, 1);
+  const startDow = first.getDay();
+  return new Date(y, m, 1 - startDow);
+}
+function currentFilter(){
+  const chipElements = document.querySelectorAll('.chip');
+  const set = new Set();
+  for(const c of chipElements){ if(c.dataset.on==='1') set.add(c.dataset.letter); }
+  return set;
+}
 
-        // 轉換重量
-        function convertWeight() {
-            const value = parseFloat(weightInput1.value);
-            if (isNaN(value)) {
-                weightResult.value = '';
-                return;
-            }
-            const unit1 = weightUnit1.value;
-            const unit2 = weightUnit2.value;
-            const convertedValue = (value / weightRates[unit1]) * weightRates[unit2];
-            weightResult.value = convertedValue.toFixed(4);
-        }
+// ---- Modal 顯示/隱藏 ----
+function showModal(message) {
+  const modal = document.getElementById('customAlert');
+  const msg = document.getElementById('customAlertMsg');
+  msg.textContent = message;
+  modal.classList.add('show');
+}
+function closeModal() {
+  const modal = document.getElementById('customAlert');
+  modal.classList.remove('show');
+}
+function showMarkerModal(dateISO = '') {
+    document.getElementById('markerDate').value = dateISO || fmtISO(new Date());
+    document.getElementById('markerDesc').value = '';
+    document.querySelector('input[name="markerColor"][value="blue"]').checked = true;
+    document.getElementById('markerModal').classList.add('show');
+}
+function closeMarkerModal() {
+    document.getElementById('markerModal').classList.remove('show');
+}
+// --- 新增：Help Modal 顯示/隱藏 ---
+function showHelpModal() {
+    document.getElementById('helpModal').classList.add('show');
+}
+function closeHelpModal() {
+    document.getElementById('helpModal').classList.remove('show');
+}
 
-        // 轉換長度
-        function convertLength() {
-            const value = parseFloat(lengthInput1.value);
-            if (isNaN(value)) {
-                lengthResult.value = '';
-                return;
-            }
-            const unit1 = lengthUnit1.value;
-            const unit2 = lengthUnit2.value;
-            // The formula is now correct because the lengthRates object has been fixed.
-            const convertedValue = (value / lengthRates[unit1]) * lengthRates[unit2];
-            lengthResult.value = convertedValue.toFixed(4);
-        }
+// --- 新增：複製文字功能 ---
+function copyToClipboard(text) {
+    const ta = document.createElement('textarea');
+    ta.style.position = 'absolute';
+    ta.style.left = '-9999px';
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+        document.execCommand('copy');
+        showModal('已複製到剪貼簿！');
+    } catch (err) {
+        console.error('Failed to copy text: ', err);
+        showModal('複製失敗，請重試。');
+    }
+    document.body.removeChild(ta);
+}
 
-        // 頁面導航
-        function showPage(pageId) {
-            const pages = [calcPage, weightPage, lengthPage, datePage];
-            const navButtons = [navCalc, navWeight, navLength, navDate];
+// ---- 核心 Render 函數 (不變) ----
+function render(targetGrid, y, m_idx){
+  const title = document.getElementById('title');
+  targetGrid.innerHTML = '';
+  if (isNaN(y) || isNaN(m_idx)) { return; }
+  
+  title.textContent = new Date(y, m_idx, 1).toLocaleString('zh-HK',{year:'numeric', month:'long'});
+  const base = firstCellDate(y, m_idx);
+  const filter = currentFilter();
+  
+  for(let i=0;i<42;i++){
+    const d = new Date(base); d.setDate(base.getDate()+i);
+    const iso = fmtISO(d); 
+    const inMonth = d.getMonth()===m_idx;
+    const {letter, number} = letterNumFor(iso);
+    const trip = triplet(letter, number);
+    const holiday = HK_HOLIDAYS_2025.get(iso) || '';
+    const marker = customMarkers[iso];
 
-            pages.forEach(page => page.classList.remove('active'));
-            navButtons.forEach(btn => {
-                if(btn) {
-                    btn.classList.remove('text-white', 'bg-blue-500');
-                    btn.classList.add('text-gray-700', 'bg-gray-200');
-                }
-            });
+    const cell = document.createElement('div');
+    cell.className = 'cell' + (inMonth ? '' : ' dim');
+    cell.dataset.iso = iso; cell.dataset.letter=letter;
+    
+    if (holiday) {
+        cell.classList.add('is-holiday');
+        cell.addEventListener('click', () => { showModal(holiday); });
+    } else if (marker) {
+        cell.classList.add('is-marker');
+        cell.style.borderColor = `var(--marker-${marker.color})`;
+        cell.addEventListener('click', () => { showModal(marker.description); });
+    }
+    
+    if(filter.size > 0 && inMonth) {
+      const tripLetters = trip.map(code => code[0]);
+      const hasMatch = tripLetters.some(l => filter.has(l));
+      if (!hasMatch) {
+        cell.classList.add('filtered-dim');
+      }
+    }
 
-            const currentPage = document.getElementById(pageId);
-            const currentNavBtn = document.getElementById(`nav-${pageId.replace('-page', '')}`);
+    const head = document.createElement('div'); head.className='dhead';
+    const num = document.createElement('div'); num.className='dnum' + (iso === TODAY_ISO ? ' today' : '');
+    num.textContent = d.getDate();
+    head.appendChild(num);
+    head.appendChild(document.createElement('div'));
+    cell.appendChild(head);
 
-            if(currentPage) {
-                currentPage.classList.add('active');
-            }
-            if(currentNavBtn) {
-                currentNavBtn.classList.remove('text-gray-700', 'bg-gray-200');
-                currentNavBtn.classList.add('text-white', 'bg-blue-500');
-            }
-        }
+    if(inMonth){
+      const tp=document.createElement('div'); tp.className='trip';
+      trip.forEach(code=>{ const div=document.createElement('div'); div.className='code '+code[0]; div.textContent=code; tp.appendChild(div); });
+      cell.appendChild(tp);
+      
+      const notes = document.createElement('input');
+      notes.type = 'text';
+      notes.className = 'notes-input';
+      notes.placeholder = '加備註...';
+      notes.value = dailyNotes[iso] || '';
+      notes.addEventListener('input', (e) => {
+        dailyNotes[iso] = e.target.value.trim();
+        if (dailyNotes[iso] === '') delete dailyNotes[iso];
+        saveData();
+      });
+      notes.addEventListener('click', (e) => { e.stopPropagation(); });
+      cell.appendChild(notes);
+    }
+    targetGrid.appendChild(cell);
+  }
+}
 
-        // 計算日期
-        function calculateDate() {
-            const start = new Date(startDateInput.value);
-            const end = new Date(endDateInput.value);
+// --- collectRows 函數 (不變) ---
+function collectRows(isoDates){
+  const rows = [];
+  for(const iso of isoDates){
+    const {letter, number} = letterNumFor(iso);
+    const [t1,t2,t3] = triplet(letter, number);
+    rows.push({
+      iso,
+      triplet:[t1,t2,t3],
+      note: dailyNotes[iso] || ''
+    });
+  }
+  return rows;
+}
 
-            if (isNaN(start) || isNaN(end)) {
-                dateResultDiv.textContent = '請選擇有效的日期。';
-                return;
-            }
+// --- exportCSV 函數 (不變) ---
+function exportCSV(rows){
+  const header = ['日期', '週期', '備註'];
+  const lines = [header.join(',')];
+  for(const r of rows){
+    const cells = [ r.iso, r.triplet.join(' '), r.note || '' ]
+      .map(v => String(v).replaceAll('"','""'));
+    lines.push(cells.map(v => /[",\n]/.test(v) ? `"${v}"` : v).join(','));
+  }
+  const blob = new Blob([lines.join('\n')], {type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='calendar_notes_export.csv'; document.body.appendChild(a); a.click(); a.remove();
+}
 
-            const diffTime = Math.abs(end - start);
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            
-            const startYear = start.getFullYear();
-            const endYear = end.getFullYear();
-            const startMonth = start.getMonth();
-            const endMonth = end.getMonth();
+// ---- 主要執行：等 DOM Ready (已更新) ----
+document.addEventListener('DOMContentLoaded', () => {
+  loadData();
+  
+  const mainWrap = document.getElementById('mainWrap');
+  const monthPick = document.getElementById('monthPick');
+  const prevM = document.getElementById('prevM');
+  const nextM = document.getElementById('nextM');
+  const chips = Array.from(document.querySelectorAll('.chip'));
+  const btnExport = document.getElementById('btnExport');
+  const modalCloseBtn = document.getElementById('customAlertClose');
+  const modalBackdrop = document.getElementById('customAlert');
+  
+  const btnAddMarker = document.getElementById('btnAddMarker');
+  const markerModal = document.getElementById('markerModal');
+  const btnCancelMarker = document.getElementById('btnCancelMarker');
+  const btnSaveMarker = document.getElementById('btnSaveMarker');
+  
+  // --- 新增：Help & Text Export 元素 ---
+  const btnHelp = document.getElementById('btnHelp');
+  const helpModal = document.getElementById('helpModal');
+  const btnCloseHelp = document.getElementById('btnCloseHelp');
+  const btnExportText = document.getElementById('btnExportText');
 
-            let diffYears = endYear - startYear;
-            let diffMonths = endMonth - startMonth;
-            
-            if (diffMonths < 0) {
-                diffYears--;
-                diffMonths += 12;
-            }
-            
-            let resultText = '';
-            if (diffYears > 0) resultText += `${diffYears} 年 `;
-            if (diffMonths > 0) resultText += `${diffMonths} 個月 `;
-            resultText += `${diffDays} 天`;
+  let currentGrid = document.getElementById('grid');
+  let isAnimating = false;
+  
+  mainWrap.style.position = 'relative';
+  mainWrap.style.overflowX = 'hidden';
 
-            dateResultDiv.textContent = resultText;
-        }
+  if (!currentGrid || !monthPick || !prevM || !nextM || !btnExport || !btnAddMarker || !btnHelp || !btnExportText) {
+      console.error('Initialization failed: Missing critical DOM elements.');
+      return;
+  }
 
-        // 單位調換功能
-        swapWeightBtn.addEventListener('click', () => {
-            const tempValue = weightUnit1.value;
-            weightUnit1.value = weightUnit2.value;
-            weightUnit2.value = tempValue;
-            convertWeight();
-        });
+  const t = new Date(TODAY_ISO+'T00:00:00');
+  const startYear = t.getFullYear();
+  const startMonthIndex = t.getMonth();
+  monthPick.value = `${startYear}-${(startMonthIndex + 1).toString().padStart(2, '0')}`;
+  
+  const todayDow = t.getDay();
+  const weekbarDivs = document.querySelectorAll('#weekbar div');
+  if (weekbarDivs[todayDow]) {
+      weekbarDivs[todayDow].classList.add('is-today');
+  }
 
-        swapLengthBtn.addEventListener('click', () => {
-            const tempValue = lengthUnit1.value;
-            lengthUnit1.value = lengthUnit2.value;
-            lengthUnit2.value = tempValue;
-            convertLength();
-        });
+  // --- 切換月份核心函數 (已更新：修正動畫) ---
+  function changeMonth(direction) {
+      if (isAnimating) return;
+      isAnimating = true;
 
-        calculateDateBtn.addEventListener('click', calculateDate);
+      const [y, m] = monthPick.value.split('-').map(Number);
+      const d = new Date(y, m - 1, 1);
+      d.setMonth(d.getMonth() + direction);
+      
+      const newY = d.getFullYear();
+      const newM_idx = d.getMonth();
+      
+      monthPick.value = `${newY}-${(newM_idx + 1).toString().padStart(2, '0')}`;
 
-        // 導航事件監聽
-        navCalc.addEventListener('click', () => showPage('calculator-page'));
-        navWeight.addEventListener('click', () => showPage('weight-page'));
-        navLength.addEventListener('click', () => showPage('length-page'));
-        navDate.addEventListener('click', () => showPage('date-page'));
+      const newGrid = document.createElement('div');
+      newGrid.className = 'grid'; newGrid.id = 'grid';
 
-        // 更新日期時間顯示
-        function updateDateTime() {
-            const now = new Date();
-            const date = now.toLocaleDateString('zh-HK', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            });
-            const time = now.toLocaleTimeString('zh-HK', {
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit'
-            });
-            datetimeDisplay.textContent = `${date} ${time}`;
-        }
-        
-        // 每秒更新一次時間
-        setInterval(updateDateTime, 1000);
-        
-        // 初始顯示計算機頁面及更新日期時間
-        showPage('calculator-page');
-        updateDateTime();
-    </script>
+      render(newGrid, newY, newM_idx); 
+      
+      const oldGrid = currentGrid;
+      oldGrid.id = 'grid-old';
+      
+      mainWrap.appendChild(newGrid);
+      currentGrid = newGrid;
+      
+      // --- 修改：使用 animationend 確保動畫順暢 ---
+      let animationEnded = false;
+      const onAnimEnd = () => {
+          if (animationEnded) return;
+          animationEnded = true;
+          if (document.body.contains(oldGrid)) {
+            oldGrid.remove();
+          }
+          isAnimating = false;
+      };
+      
+      oldGrid.addEventListener('animationend', onAnimEnd);
+      setTimeout(onAnimEnd, 450); // Fallback
+
+      requestAnimationFrame(() => {
+          if (direction > 0) { // Next
+              oldGrid.classList.add('animate-out-left');
+              newGrid.classList.add('animate-in-right');
+          } else { // Prev
+              oldGrid.classList.add('animate-out-right');
+              newGrid.classList.add('animate-in-left');
+          }
+      });
+  }
+  
+  // --- 綁定事件 (已更新) ---
+  prevM.addEventListener('click', () => changeMonth(-1));
+  nextM.addEventListener('click', () => changeMonth(1));
+  
+  monthPick.addEventListener('change', () => {
+      const [y, m] = monthPick.value.split('-').map(Number);
+      render(currentGrid, y, m - 1);
+  });
+
+  chips.forEach(c=>c.addEventListener('click', ()=>{
+    c.dataset.on = c.dataset.on==='1' ? '0' : '1';
+    const [y, m] = monthPick.value.split('-').map(Number);
+    render(currentGrid, y, m - 1);
+  }));
+
+  btnExport.addEventListener('click', ()=>{
+    const isoDatesWithNotes = Object.keys(dailyNotes).filter(iso => dailyNotes[iso] && dailyNotes[iso].trim() !== '');
+    if(isoDatesWithNotes.length === 0){ 
+      showModal('請先輸入至少一項備註。');
+      return; 
+    }
+    const rows = collectRows(isoDatesWithNotes.sort());
+    exportCSV(rows);
+  });
+
+  modalCloseBtn.addEventListener('click', closeModal);
+  modalBackdrop.addEventListener('click', (e) => {
+    if (e.target === modalBackdrop) closeModal();
+  });
+  
+  btnAddMarker.addEventListener('click', () => { showMarkerModal(); });
+  btnCancelMarker.addEventListener('click', closeMarkerModal);
+  markerModal.addEventListener('click', (e) => {
+    if (e.target === markerModal) closeMarkerModal();
+  });
+  btnSaveMarker.addEventListener('click', () => {
+      const date = document.getElementById('markerDate').value;
+      const desc = document.getElementById('markerDesc').value;
+      const color = document.querySelector('input[name="markerColor"]:checked').value;
+      
+      if (!date || !desc) {
+          showModal('請填寫日期和說明。');
+          return;
+      }
+      
+      customMarkers[date] = { description: desc, color: color };
+      saveData();
+      closeMarkerModal();
+      
+      const [y, m] = monthPick.value.split('-').map(Number);
+      render(currentGrid, y, m - 1);
+  });
+  
+  // --- 新增：Help & Text Export 事件 ---
+  btnHelp.addEventListener('click', showHelpModal);
+  btnCloseHelp.addEventListener('click', closeHelpModal);
+  helpModal.addEventListener('click', (e) => {
+    if (e.target === helpModal) closeHelpModal();
+  });
+  
+  btnExportText.addEventListener('click', () => {
+      const allIsoDates = new Set([
+          ...Object.keys(dailyNotes).filter(iso => dailyNotes[iso] && dailyNotes[iso].trim() !== ''), 
+          ...Object.keys(customMarkers)
+      ]);
+      
+      const sortedDates = Array.from(allIsoDates).sort();
+      
+      if (sortedDates.length === 0) {
+          showModal('沒有任何備註或標記可供複製。');
+          return;
+      }
+
+      let output = "📅 你的日曆匯出\n--------------------\n\n";
+      
+      for (const iso of sortedDates) {
+          const d = new Date(iso + 'T00:00:00');
+          const weekday = d.toLocaleDateString('zh-HK', { weekday: 'short' });
+          const note = dailyNotes[iso];
+          const marker = customMarkers[iso];
+          const holiday = HK_HOLIDAYS_2025.get(iso);
+
+          output += `${iso} (${weekday})\n`;
+          
+          if (holiday) {
+              output += `  - 假期: ${holiday}\n`;
+          }
+          if (marker) {
+              const colorName = marker.color === 'blue' ? '藍色' : '綠色';
+              output += `  - 標記: ${marker.description} (${colorName})\n`;
+          }
+          if (note && note.trim() !== '') {
+              output += `  - 備註: ${note}\n`;
+          }
+          output += '\n'; // Add a blank line for spacing
+      }
+      
+      output += "--------------------";
+      copyToClipboard(output);
+  });
+
+
+  // --- 初始 Render ---
+  render(currentGrid, startYear, startMonthIndex);
+});
+</script>
 </body>
 </html>
+
+
 
