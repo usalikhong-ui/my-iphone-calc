@@ -1,14 +1,15 @@
 <!DOCTYPE html>
 <html lang="zh-HK">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>ABCDE 月曆（備註版）</title>
 <!-- 
-  v5.3 - 2025-11-09
-  1.  (FIX) 修正 12hr 篩選邏輯，使其檢查 tripFive[0], [1], [2] 所有三個班次。
-  2.  (FIX) 修正 v5.1 中 'e.g.target.value' 嘅打字錯誤。
+  v5.9 - 2025-11-09
+  1.  (FIX) 移除 showMarkerInfoModal() 內部刪除按鈕 'isAnimating' guard，
+      修正 v5.6/5.7 導致刪除按鈕無效嘅 bug。
+  2.  (Feature) 新增 CSS 漸變色邊框，用於「假期 + 標記」並存嘅情況。
+  3.  (Confirm) 包含 v5.8 嘅所有修正 (點擊邏輯, 16px字體)。
 -->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>ABCDE 月曆（備註版）</title>
 <style>
   :root{
     --bg: #0b1220;
@@ -156,6 +157,50 @@
     border-left-width: 3px;
     padding-left: 6px;
   }
+  /* --- (v5.9) 漸變色邊框邏輯 --- */
+  .cell.is-marker-blue { border-left-color: var(--marker-blue); }
+  .cell.is-marker-green { border-left-color: var(--marker-green); }
+  .cell.is-marker-split {
+    border-image: linear-gradient(
+      to bottom, 
+      var(--marker-blue) 49%, 
+      var(--stroke) 49%, 
+      var(--stroke) 51%, 
+      var(--marker-green) 51%
+    ) 1;
+  }
+  /* 假期 + 標記 */
+  .cell.is-holiday.is-marker-blue {
+     border-image: linear-gradient(
+      to bottom, 
+      var(--holiday) 49%, 
+      var(--stroke) 49%, 
+      var(--stroke) 51%, 
+      var(--marker-blue) 51%
+    ) 1;
+  }
+  .cell.is-holiday.is-marker-green {
+     border-image: linear-gradient(
+      to bottom, 
+      var(--holiday) 49%, 
+      var(--stroke) 49%, 
+      var(--stroke) 51%, 
+      var(--marker-green) 51%
+    ) 1;
+  }
+  .cell.is-holiday.is-marker-split {
+     border-image: linear-gradient(
+      to bottom, 
+      var(--holiday) 32%, 
+      var(--stroke) 32%, 
+      var(--stroke) 34%, 
+      var(--marker-blue) 34%,
+      var(--marker-blue) 65%,
+      var(--stroke) 65%, 
+      var(--stroke) 67%, 
+      var(--marker-green) 67%
+    ) 1;
+  }
 
   .trip-five, .trip-three {
     display: none;
@@ -187,8 +232,12 @@
     border:1px solid var(--stroke);
     border-radius:6px;
     color: var(--txt);
-    padding:4px 6px;
-    font-size:11px;
+    /* (v5.6 FIX) 
+       Padding 調整: 4px -> 2px
+       Font-size 必須 >= 16px 才能防止 iOS 自動放大
+    */
+    padding:2px 6px;
+    font-size:16px; 
     outline: none;
     cursor:text;
   }
@@ -319,6 +368,27 @@
     color: var(--txt);
   }
   
+  /* --- (v5.4) 新增：markerInfoModal 列表樣式 --- */
+  .marker-item { 
+    display: flex; 
+    align-items: center; 
+    gap: 8px; 
+    margin-bottom: 8px; 
+    background: var(--panel);
+    padding: 8px;
+    border-radius: 6px;
+  }
+  .marker-item span { flex-grow: 1; font-size: 14px; }
+  .marker-item .color-dot { flex-shrink: 0; }
+  .marker-item button { 
+      background: var(--holiday); 
+      color: var(--txt); 
+      padding: 4px 8px; 
+      font-size: 12px; 
+      margin: 0; 
+      border-radius: 6px;
+  }
+  
   /* 動畫 */
   @keyframes bounce-in-right {
       0% { transform: translateX(100%); opacity: 0; }
@@ -427,14 +497,17 @@
 <div class="modal-backdrop" id="markerInfoModal">
   <div class="modal-content">
     <h3 style="display: flex; align-items: center; gap: 8px;">
-      <span id="markerInfoColor" class="color-dot"></span>
       標記詳情
     </h3>
     <p id="markerInfoDate" style="font-size: 14px; color: var(--muted); text-align: left; margin: 0;"></p>
-    <p id="markerInfoDesc" style="font-size: 16px; text-align: left; margin: 10px 0 20px;"></p>
+    
+    <!-- (v5.4)  markerInfoList 用於動態建立列表 -->
+    <div id="markerInfoList" class="form-group" style="margin-top: 15px;">
+      <!-- Dynamic list will be built here -->
+    </div>
+    
     <div class="modal-actions">
       <button class="secondary" id="btnCloseMarkerInfo">關閉</button>
-      <button id="btnDeleteMarker" style="background: var(--holiday); color: var(--txt);">刪除</button>
     </div>
   </div>
 </div>
@@ -583,7 +656,28 @@ function loadData() {
     const markers = localStorage.getItem('calendarMarkers');
     try {
       if (notes) { dailyNotes = JSON.parse(notes) || {}; }
-      if (markers) { customMarkers = JSON.parse(markers) || {}; }
+      if (markers) { 
+          customMarkers = JSON.parse(markers) || {}; 
+          
+          // --- (v5.4) 遷移邏輯：將舊嘅 "單一物件" 轉為 "陣列" ---
+          Object.keys(customMarkers).forEach(iso => {
+              if (customMarkers[iso] && !Array.isArray(customMarkers[iso])) {
+                  // 舊資料 (單一物件)
+                  if (!customMarkers[iso].id) {
+                      customMarkers[iso].id = Date.now() + '-' + Math.random(); // (FIX) 統一 ID 格式
+                  }
+                  customMarkers[iso] = [customMarkers[iso]]; // 轉為陣列
+              } else if (customMarkers[iso] && Array.isArray(customMarkers[iso])) {
+                  // 新資料 (陣列)，確保所有項目都有 ID
+                  customMarkers[iso].forEach(marker => {
+                      if (!marker.id) {
+                          marker.id = Date.now() + '-' + Math.random(); // (FIX) 統一 ID 格式
+                      }
+                  });
+              }
+          });
+          // --- (v5.4) 遷移結束 ---
+      }
     } catch (e) {
       console.error('Failed to parse saved data', e);
       dailyNotes = {}; customMarkers = {};
@@ -696,13 +790,79 @@ function closeFilterModal() {
 }
 
 
-// --- 顯示/刪除 標記 Modal ---
-function showMarkerInfoModal(iso, marker) {
-    currentMarkerISO = iso; // 儲存 iso 俾刪除掣用
+// --- (v5.8) 顯示/刪除 標記 Modal (已重寫) ---
+function showMarkerInfoModal(iso, markers) {
+    currentMarkerISO = iso; // 儲存 iso
     const modal = document.getElementById('markerInfoModal');
-    document.getElementById('markerInfoDesc').textContent = marker.description;
-    document.getElementById('markerInfoColor').style.background = `var(--marker-${marker.color})`;
+    const listDiv = document.getElementById('markerInfoList');
     document.getElementById('markerInfoDate').textContent = iso;
+    listDiv.innerHTML = ''; // 清空舊列表
+
+    // (v5.8) 自動檢查並顯示假期
+    const d = new Date(iso + 'T00:00:00');
+    const year = d.getFullYear();
+    const holidayMap = getHolidayMapForYear(year);
+    const holidayName = holidayMap.get(iso) || '';
+    
+    if (holidayName) {
+        listDiv.innerHTML += `
+            <div class="marker-item" style="background: #a11a3a; color: white; font-weight: 600;">
+                <span class="color-dot" style="background: var(--holiday);"></span>
+                <span>${holidayName}</span>
+                <!-- 假期冇刪除掣 -->
+            </div>
+        `;
+    }
+
+    if (!markers || markers.length === 0) {
+        if (!holidayName) { // 只有喺連假期都冇嘅情況下先顯示 "沒有標記"
+             listDiv.innerHTML += '<p style="text-align: left; color: var(--muted); margin: 0;">此日期沒有標記。</p>';
+        }
+    } else {
+        markers.forEach((marker) => {
+            const item = document.createElement('div');
+            item.className = 'marker-item';
+            // 確保 description 係 HTML-safe (e.g. 處理 <>)
+            const descText = document.createTextNode(marker.description);
+            const descSpan = document.createElement('span');
+            descSpan.appendChild(descText);
+            
+            item.innerHTML = `
+                <span class="color-dot" style="background: var(--marker-${marker.color});"></span>
+                <span>${descSpan.innerHTML}</span>
+                <button class="btn-delete-marker-item" data-id="${marker.id}">刪除</button>
+            `;
+            listDiv.appendChild(item);
+        });
+    }
+    
+    // 為新建立嘅 "刪除" 按鈕綁定事件
+    listDiv.querySelectorAll('.btn-delete-marker-item').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            // (v5.9 FIX) 移除 isAnimating guard
+            // if (isAnimating) return; 
+            const idToDelete = e.target.dataset.id;
+            
+            // 1. 喺陣列中移除該 ID
+            customMarkers[currentMarkerISO] = customMarkers[currentMarkerISO].filter(m => m.id !== idToDelete); 
+            
+            // 2. 如果陣列為空，刪除呢一日嘅 key
+            if (customMarkers[currentMarkerISO] && customMarkers[currentMarkerISO].length === 0) {
+                delete customMarkers[currentMarkerISO];
+            }
+            
+            // 3. 儲存
+            saveData();
+            
+            // 4. 重新整理 Modal 列表 (遞歸)
+            showMarkerInfoModal(currentMarkerISO, customMarkers[currentMarkerISO]); // Refresh list
+            
+            // 5. 重新整理月曆 (更新邊框)
+            const [y, m] = monthPick.value.split('-').map(Number);
+            render(currentGrid, y, m - 1);
+        });
+    });
+    
     modal.classList.add('show');
 }
 function closeMarkerInfoModal() {
@@ -768,26 +928,49 @@ function render(targetGrid, y, m_idx){
     const inMonth = d.getMonth()===m_idx;
     
     // --- 計算兩種排序 ---
-    // const {letter, number} = letterNumFor(iso); // (v5.3 修正：呢行唔再需要)
     const tripFive = triplet(iso); // [C7, B7, A7]
     const tripThree = tripletThreeTeam(iso); // [C(24), C(2D), B(2D)]
     
     const holiday = yearHolidayMap.get(iso) || ''; 
-    const marker = customMarkers[iso];
+    const markers = customMarkers[iso] || []; // (v5.4) 改為陣列
 
     const cell = document.createElement('div');
     cell.className = 'cell' + (inMonth ? '' : ' dim');
     cell.dataset.iso = iso; 
-    // cell.dataset.letter=letter; // (v5.3 修正：呢行唔再需要)
     
+    // --- (v5.8) 點擊邏輯重構 ---
+    if (holiday || markers.length > 0) {
+        cell.addEventListener('click', () => {
+            // (FIX v5.8) 移除 isAnimating guard
+            
+            // 優先級: 
+            // 1. 如果有 markers (無論有冇假期)，顯示 marker modal (v5.8 嘅 modal 會同時顯示假期)
+            // 2. 如果 *只有* 假期，顯示簡單 holiday modal
+            
+            if (markers.length > 0 || holiday) { // (v5.9) 只要有 marker *或* holiday，都用新 modal
+                showMarkerInfoModal(iso, markers);
+            }
+            // (v5.9) 舊嘅 showModal(holiday) 邏輯已合併入 showMarkerInfoModal
+        });
+    }
+    
+    // (v5.9) 視覺 (Class) 邏輯分離
     if (holiday) {
         cell.classList.add('is-holiday');
-        cell.addEventListener('click', () => { showModal(holiday); });
-    } else if (marker) {
-        cell.classList.add('is-marker');
-        cell.style.borderColor = `var(--marker-${marker.color})`;
-        cell.addEventListener('click', () => { showMarkerInfoModal(iso, marker); });
     }
+    if (markers.length > 0) {
+        cell.classList.add('is-marker');
+        const colors = new Set(markers.map(m => m.color));
+        
+        if (colors.has('blue') && colors.has('green')) {
+            cell.classList.add('is-marker-split');
+        } else if (colors.has('blue')) {
+            cell.classList.add('is-marker-blue');
+        } else if (colors.has('green')) {
+            cell.classList.add('is-marker-green');
+        }
+    }
+    // --- (v5.9) 點擊邏輯結束 ---
     
     // --- 篩選邏輯 (v5.3 修正) ---
     let isFiltered = false;
@@ -795,34 +978,6 @@ function render(targetGrid, y, m_idx){
         
         if (filterState.type === '12hr') {
             // "12小時" 篩選邏輯
-            
-            // 檢查 C / C7 / 7
-            let letterMatch = (filterState.letter12 === 'none');
-            let numberMatch = (filterState.number12 === 'none');
-            
-            // (FIX) 檢查所有三個班次
-            for (const shift of tripFive) { // e.g., tripFive = [C7, B7, A7]
-                const letter = shift[0]; // C
-                const numStr = (shift.match(/\d+/) || [''])[0]; // 7
-                
-                if (filterState.letter12 !== 'none' && filterState.letter12 === letter) {
-                    letterMatch = true;
-                }
-                if (filterState.number12 !== 'none' && filterState.number12 === numStr) {
-                    numberMatch = true;
-                }
-            }
-
-            // 釐清邏輯：
-            // 1. 揀 C, 揀 7 -> 搵 C or 7 (目前邏輯)
-            // 2. 揀 C, 揀 7 -> 搵 C AND 7 (即 C7) (v5.3 新邏輯)
-            
-            // v5.3 採用邏輯 #2:
-            // 如果 字母 = 'none' and 數字 = 'none' -> 唔篩選 (match = true)
-            // 如果 字母 != 'none' and 數字 = 'none' -> 淨係 check 字母
-            // 如果 字母 = 'none' and 數字 != 'none' -> 淨係 check 數字
-            // 如果 字母 != 'none' and 數字 != 'none' -> 必須同時 match C 同 7
-
             let dayMatches = false;
             
             if (filterState.letter12 === 'none' && filterState.number12 === 'none') {
@@ -915,31 +1070,30 @@ function render(targetGrid, y, m_idx){
   }
 }
 
-// --- 收集數據 (用於輸出) ---
+// --- (v5.4) 收集數據 (簡化輸出) ---
 function collectRows(isoDates){
   const rows = [];
   for(const iso of isoDates){
-    const tripFive = triplet(iso);
-    const tripThree = tripletThreeTeam(iso);
+    const markers = customMarkers[iso] || [];
+    // 將多個標記用分號組合
+    const markerText = markers.map(m => m.description).join('; ');
     rows.push({
       iso,
-      tripletFive: tripFive,
-      tripletThree: tripThree, 
+      markers: markerText,
       note: dailyNotes[iso] || ''
     });
   }
   return rows;
 }
 
-// --- 輸出 CSV 功能 ---
+// --- (v5.4) 輸出 CSV 功能 (簡化) ---
 function exportCSV(rows){
-  const header = ['日期', '12小時工作', '24小時工作', '備註'];
+  const header = ['日期', '標記', '備註']; // 簡化 header
   const lines = [header.join(',')];
   for(const r of rows){
     const cells = [ 
       r.iso, 
-      r.tripletFive.join(' '), 
-      r.tripletThree.join(' '), 
+      r.markers || '', 
       r.note || '' 
     ].map(v => String(v).replaceAll('"','""'));
     lines.push(cells.map(v => /[",\n]/.test(v) ? `"${v}"` : v).join(','));
@@ -974,8 +1128,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnToggle24hr = document.getElementById('btnToggle24hr');
   const markerInfoModal = document.getElementById('markerInfoModal');
   const btnCloseMarkerInfo = document.getElementById('btnCloseMarkerInfo');
-  const btnDeleteMarker = document.getElementById('btnDeleteMarker');
 
+  // --- 獲取篩選 Modal 元素 ---
   const btnShowFilter = document.getElementById('btnShowFilter');
   const filterModal = document.getElementById('filterModal');
   const btnApplyFilter = document.getElementById('btnApplyFilter');
@@ -987,7 +1141,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   let currentGrid = document.getElementById('grid');
-  let isAnimating = false;
+  let isAnimating = false; // (保留) 按鈕仍然需要
   
   mainWrap.style.position = 'relative';
   mainWrap.style.overflowX = 'hidden';
@@ -1117,7 +1271,17 @@ document.addEventListener('DOMContentLoaded', () => {
           return;
       }
       
-      customMarkers[date] = { description: desc, color: color };
+      // --- (v5.4) 寫入邏輯更新 ---
+      if (!customMarkers[date]) {
+          customMarkers[date] = []; // 確保係陣列
+      }
+      customMarkers[date].push({ 
+          description: desc, 
+          color: color, 
+          id: Date.now() + '-' + Math.random() // 加入 unique ID
+      });
+      // --- (v5.4) 結束 ---
+      
       saveData();
       closeMarkerModal();
       
@@ -1159,15 +1323,6 @@ document.addEventListener('DOMContentLoaded', () => {
   markerInfoModal.addEventListener('click', (e) => {
       if (e.target === markerInfoModal) closeMarkerInfoModal();
   });
-  btnDeleteMarker.addEventListener('click', () => {
-      if (currentMarkerISO) {
-          delete customMarkers[currentMarkerISO];
-          saveData();
-          closeMarkerInfoModal();
-          const [y, m] = monthPick.value.split('-').map(Number);
-          render(currentGrid, y, m - 1);
-      }
-  });
   
   // --- 新增：篩選 Modal 事件 ---
   btnShowFilter.addEventListener('click', () => {
@@ -1177,7 +1332,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   filterTypeRadios.forEach(radio => {
       radio.addEventListener('change', (e) => {
-          // --- (FIX) 修正 'e.g.target' 錯誤 ---
+          // --- (FIX v5.3) 修正 'e.g.target' 錯誤 ---
           filterOptions12hr.style.display = (e.target.value === '12hr') ? 'block' : 'none';
           filterOptions24hr.style.display = (e.target.value === '24hr') ? 'block' : 'none';
       });
@@ -1207,7 +1362,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
 
-  // --- 輸出文字 ---
+  // --- (v5.4) 輸出文字 (簡化) ---
   btnExportText.addEventListener('click', () => {
       if (isAnimating) return;
       const allIsoDates = new Set([
@@ -1228,29 +1383,28 @@ document.addEventListener('DOMContentLoaded', () => {
           const d = new Date(iso + 'T00:00:00');
           const weekday = d.toLocaleDateString('zh-HK', { weekday: 'short' });
           const note = dailyNotes[iso];
-          const marker = customMarkers[iso];
+          const markers = customMarkers[iso] || []; // (v5.4) 讀取陣列
           
           const year = d.getFullYear();
           const holidayMap = getHolidayMapForYear(year);
           const holiday = holidayMap.get(iso);
-
-          const tripFive = triplet(iso);
-          const tripThree = tripletThreeTeam(iso);
 
           output += `${iso} (${weekday})\n`;
           
           if (holiday) {
               output += `  - 假期: ${holiday}\n`;
           }
-          if (marker) {
+          
+          // (v5.4) 循環輸出所有標記
+          markers.forEach(marker => {
               const colorName = marker.color === 'blue' ? '藍色' : '綠色';
               output += `  - 標記: ${marker.description} (${colorName})\n`;
-          }
+          });
+          
           if (note && note.trim() !== '') {
               output += `  - 備註: ${note}\n`;
           }
-          output += `  - 12小時: ${tripFive.join(', ')}\n`;
-          output += `  - 24小時: ${tripThree.join(', ')}\n`;
+          
           output += '\n';
       }
       
