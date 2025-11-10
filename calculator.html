@@ -2,10 +2,13 @@
 <html lang="zh-HK">
 <head>
 <!-- 
-  v5.11 - 2025-11-09
-  1.  (CRITICAL FIX) 修正 HOLIDAY_DATA 常數中 2025 年份嘅 "2CH-J" 語法錯誤，
-      呢個錯誤導致 v5.9/v5.10 嘅 JavaScript 載入失敗，畫面空白。
-  2.  (Confirm) 包含 v5.10 嘅所有修正 (排版, 刪除邏輯, 漸變色邊框)。
+  v5.12 - 2025-11-10
+  1.  (CRITICAL FIX) 修正「今日」高光：
+      -   將 'TODAY_ISO' (2025-11-09) 改名為 'ANCHOR_ISO'，只用作 C6 計算基準。
+      -   新增 getTodayISO() 函數及 'ACTUAL_TODAY_ISO' 變數，用於獲取真實香港日期。
+  2.  (FIX) render() 函數嘅 'today' 高光 class 已改為使用 'ACTUAL_TODAY_ISO'。
+  3.  (FIX) DOMContentLoaded 嘅初始月份、日期 bar 高光，已改為使用真實日期 (new Date())。
+  4.  (Confirm) 包含 v5.11 嘅所有修正 (JS 語法錯誤, 排版, 刪除邏輯, 漸變色)。
 -->
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <title>ABCDE 月曆（備註版）</title>
@@ -600,9 +603,9 @@
 
 
 <script>
-// ---- 固定規則：今日 2025-11-09 = C6 ----
+// ---- 固定規則： (v5.12) 'TODAY_ISO' 改名為 'ANCHOR_ISO' ----
 const LETTERS = ['A','B','C','D','E'];
-const TODAY_ISO = '2025-11-09';
+const ANCHOR_ISO = '2025-11-09'; // 2025-11-09 = C6 (C6 嘅計算基準日)
 const ANCHOR_LETTER = 'C';
 const ANCHOR_NUMBER = 6;
 
@@ -610,6 +613,29 @@ const ANCHOR_NUMBER = 6;
 const ANCHOR_3_TEAM = '2025-11-09';
 const CYCLE_24 = ['C(24)', 'A(24)', 'B(24)']; // 3-day cycle
 const CYCLE_4D = ['C(2D)', 'D(2D)', 'A(2D)', 'B(2D)']; // 4-day cycle
+
+// --- (v5.12) 新增：獲取真實 "今日" 日期 (HKT) ---
+function getTodayISO() {
+    const today = new Date();
+    // Format to YYYY-MM-DD in Asia/Hong_Kong timezone
+    const options = { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'Asia/Hong_Kong' };
+    try {
+        const parts = new Intl.DateTimeFormat('en-CA', options).formatToParts(today);
+        const y = parts.find(p => p.type === 'year').value;
+        const m = parts.find(p => p.type === 'month').value;
+        const d = parts.find(p => p.type === 'day').value;
+        return `${y}-${m}-${d}`;
+    } catch (e) {
+        console.error("Failed to get HKT date, falling back to local.", e);
+        // Fallback for environments that don't support en-CA or timeZone
+        const y = today.getFullYear();
+        const m = (today.getMonth() + 1).toString().padStart(2, '0');
+        const d = today.getDate().toString().padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+}
+const ACTUAL_TODAY_ISO = getTodayISO();
+
 
 // --- 內置假期資料庫 (2024-2026) ---
 const HOLIDAY_DATA = {
@@ -700,7 +726,7 @@ function mod(a,b){ return ((a % b)+b)%b; }
 // --- 計算主更 "12小時" (e.g. C6) ---
 function letterNumFor(dateISO){
   const i0 = LETTERS.indexOf(ANCHOR_LETTER);
-  const n = daysBetween(TODAY_ISO, dateISO);
+  const n = daysBetween(ANCHOR_ISO, dateISO); // (v5.12) 使用 ANCHOR_ISO
   const idx = mod(i0 - n, 5);
   const wraps = Math.floor((i0 + n)/5);
   let num = ANCHOR_NUMBER + wraps;
@@ -1025,7 +1051,8 @@ function render(targetGrid, y, m_idx){
     // --- (篩選邏輯結束) ---
 
     const head = document.createElement('div'); head.className='dhead';
-    const num = document.createElement('div'); num.className='dnum' + (iso === TODAY_ISO ? ' today' : '');
+    // (v5.12) 修正高光
+    const num = document.createElement('div'); num.className='dnum' + (iso === ACTUAL_TODAY_ISO ? ' today' : '');
     num.textContent = d.getDate();
     head.appendChild(num);
     head.appendChild(document.createElement('div'));
@@ -1157,12 +1184,14 @@ document.addEventListener('DOMContentLoaded', () => {
   btnToggle12hr.dataset.on = showFiveTeam ? '1' : '0';
   btnToggle24hr.dataset.on = showThreeTeam ? '1' : '0';
 
-  const t = new Date(TODAY_ISO+'T00:00:00');
-  const startYear = t.getFullYear();
-  const startMonthIndex = t.getMonth();
+  // (v5.12) 修正：使用真實日期 (new Date()) 嚟設定初始畫面
+  const t_today = new Date(); 
+  const startYear = t_today.getFullYear();
+  const startMonthIndex = t_today.getMonth();
   monthPick.value = `${startYear}-${(startMonthIndex + 1).toString().padStart(2, '0')}`;
   
-  const todayDow = t.getDay();
+  // (v5.12) 修正：使用真實日期嚟高光 "星期"
+  const todayDow = t_today.getDay();
   const weekbarDivs = document.querySelectorAll('#weekbar div');
   if (weekbarDivs[todayDow]) {
       weekbarDivs[todayDow].classList.add('is-today');
