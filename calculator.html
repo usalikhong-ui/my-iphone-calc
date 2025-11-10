@@ -2,13 +2,11 @@
 <html lang="zh-HK">
 <head>
 <!-- 
-  v5.12 - 2025-11-10
-  1.  (CRITICAL FIX) 修正「今日」高光：
-      -   將 'TODAY_ISO' (2025-11-09) 改名為 'ANCHOR_ISO'，只用作 C6 計算基準。
-      -   新增 getTodayISO() 函數及 'ACTUAL_TODAY_ISO' 變數，用於獲取真實香港日期。
-  2.  (FIX) render() 函數嘅 'today' 高光 class 已改為使用 'ACTUAL_TODAY_ISO'。
-  3.  (FIX) DOMContentLoaded 嘅初始月份、日期 bar 高光，已改為使用真實日期 (new Date())。
-  4.  (Confirm) 包含 v5.11 嘅所有修正 (JS 語法錯誤, 排版, 刪除邏輯, 漸變色)。
+  v5.14 - 2025-11-10
+  1.  (FIX) 修正 parseImportedText() 嘅 Regex 規則，
+      放寬 '標記: ' 同 '備註: ' 後面嘅空格要求，
+      修正 v5.13 匯入 0 個項目嘅 bug。
+  2.  (Confirm) 包含 v5.12 嘅所有修正 (真實日期高光, 語法錯誤, 排版, 刪除邏輯)。
 -->
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <title>ABCDE 月曆（備註版）</title>
@@ -236,10 +234,7 @@
     border:1px solid var(--stroke);
     border-radius:6px;
     color: var(--txt);
-    /* (v5.6 FIX) 
-       Padding 調整: 4px -> 2px
-       Font-size 必須 >= 16px 才能防止 iOS 自動放大
-    */
+    /* (v5.6 FIX) */
     padding:2px 6px;
     font-size:16px; 
     outline: none;
@@ -323,6 +318,18 @@
   }
   .form-group input:focus, .form-group select:focus {
     outline: 1px solid var(--accent);
+  }
+  
+  /* (v5.13) Import Modal Textarea */
+  #importDataText {
+    width: 100%;
+    min-height: 200px;
+    background: var(--panel);
+    border: 1px solid var(--stroke);
+    border-radius: 8px;
+    color: var(--txt);
+    padding: 10px;
+    font-size: 14px;
   }
   
   .radio-group-row {
@@ -443,6 +450,8 @@
         <button class="btn" id="btnShowFilter" style="background: var(--panel);">篩選</button>
         <button class="btn btn-help" id="btnHelp">說明</button>
         <button class="btn btn-add-marker" id="btnAddMarker">+ 標記</button>
+        <!-- (v5.13) 新增「匯入資料」按鈕 -->
+        <button class="btn" id="btnImport">匯入資料</button>
         <button class="btn" id="btnExportText">輸出文字</button>
         <button class="btn" id="btnExport">輸出 CSV</button>
       </div>
@@ -462,6 +471,23 @@
   <div class="modal-content">
     <p id="customAlertMsg"></p>
     <button id="customAlertClose">明白</button>
+  </div>
+</div>
+
+<!-- (v5.13) 新增「匯入資料」彈窗 -->
+<div class="modal-backdrop" id="importModal">
+  <div class="modal-content">
+    <h3>匯入資料</h3>
+    <p style="text-align: left; color: var(--muted); font-size: 14px; margin-bottom: 10px;">
+      請貼上由「輸出文字」功能複製嘅內容。系統將會合併資料，並唔會覆蓋你現有嘅備註或標記。
+    </p>
+    <div class="form-group">
+      <textarea id="importDataText" placeholder="貼上匯出嘅文字..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="secondary" id="btnCancelImport">取消</button>
+      <button id="btnDoImport">匯入</button>
+    </div>
   </div>
 </div>
 
@@ -592,10 +618,10 @@
     <ul>
       <li><b>週期篩選</b>: 點擊 <code>篩選</code> 按鈕，可以彈出篩選視窗。您可以嚴格區分「12小時」或「24小時」工作類型進行篩選。</li>
       <li><b>12小時 / 24小時</b>: 點擊 <code>12小時工作</code> 或 <code>24小時工作</code> 按鈕，可切換顯示對應嘅班次排序。</li>
+      <li><b>匯入/輸出</b>: 點擊 <code>輸出文字</code> 複製你嘅資料，其他人可以㩒 <code>匯入資料</code> 並貼上，系統會自動合併（唔會覆蓋）標記同備註。</li>
       <li><b>自動儲存</b>: 在日期格底部輸入的「備註」，將會自動儲存於您的瀏覽器中，下次開啟時資料將自動載入。</li>
       <li><b>公眾假期</b>: 左側帶有<code>紅色</code>邊框的日期為香港公眾假期，點擊該日期格可查看假期名稱。</li>
       <li><b>自訂標記</b>: 點擊 <code>+ 標記</code> 按鈕可新增標記。點擊已標記嘅日期格，可以查閱說明或 <code>刪除</code> 該標記。</li>
-      <li><b>輸出文字 / CSV</b>: 點擊輸出按鈕，系統將導出 *所有* 班次資料 (包括 12/24 小時) 及備註，無論當前是否隱藏。</li>
     </ul>
     <button id="btnCloseHelp">明白</button>
   </div>
@@ -800,6 +826,15 @@ function closeHelpModal() {
     document.getElementById('helpModal').classList.remove('show');
 }
 
+// --- (v5.13) Import Modal ---
+function showImportModal() {
+    document.getElementById('importDataText').value = ''; // 清空
+    document.getElementById('importModal').classList.add('show');
+}
+function closeImportModal() {
+    document.getElementById('importModal').classList.remove('show');
+}
+
 // --- 新增：篩選 Modal 顯示/隱藏 ---
 function showFilterModal() {
     // 載入 modal 時，將 global state 填入 radio buttons
@@ -931,6 +966,100 @@ function getHolidayMapForYear(year) {
     } else {
         return new Map();
     }
+}
+
+
+// ---- (v5.13) 新增：解析匯入嘅文字 ----
+function parseImportedText(text) {
+    const parsedMarkers = {};
+    const parsedNotes = {};
+    let currentISO = null;
+    
+    const lines = text.split('\n');
+    const dateRegex = /^(\d{4}-\d{2}-\d{2})/; // 搵 YYYY-MM-DD
+    // (v5.14 FIX) 放寬 Regex 規則，允許 '標記:' 同 '備註:' 後面有 0 或多個空格
+    const markerRegex = /^- 標記: *(.*) \((藍色|綠色)\)$/;
+    const noteRegex = /^- 備註: *(.*)$/;
+
+    for (const line of lines) {
+        const dateMatch = line.match(dateRegex);
+        if (dateMatch) {
+            currentISO = dateMatch[1];
+            continue;
+        }
+
+        if (!currentISO) continue; // 未搵到日期之前，skip 晒
+
+        const trimmedLine = line.trim();
+        
+        const markerMatch = trimmedLine.match(markerRegex);
+        if (markerMatch) {
+            if (!parsedMarkers[currentISO]) parsedMarkers[currentISO] = [];
+            const desc = markerMatch[1];
+            const color = (markerMatch[2] === '藍色') ? 'blue' : 'green';
+            parsedMarkers[currentISO].push({
+                description: desc,
+                color: color,
+                id: Date.now() + '-' + Math.random()
+            });
+            continue;
+        }
+
+        const noteMatch = trimmedLine.match(noteRegex);
+        if (noteMatch) {
+            parsedNotes[currentISO] = noteMatch[1];
+            continue;
+        }
+    }
+    return { parsedMarkers, parsedNotes };
+}
+
+// ---- (v5.13) 新增：合併匯入嘅資料 ----
+function mergeData(parsedMarkers, parsedNotes) {
+    let markersAdded = 0;
+    let notesAdded = 0;
+
+    // 1. 合併 Notes
+    for (const iso in parsedNotes) {
+        if (Object.prototype.hasOwnProperty.call(parsedNotes, iso)) {
+            const newNote = parsedNotes[iso];
+            if (dailyNotes[iso] && dailyNotes[iso] !== newNote) {
+                // 已有唔同嘅 note，合併
+                dailyNotes[iso] = dailyNotes[iso] + " / " + newNote;
+                notesAdded++;
+            } else if (!dailyNotes[iso]) {
+                // 冇 note，新增
+                dailyNotes[iso] = newNote;
+                notesAdded++;
+            }
+            // 如果 note 一樣，就唔使理
+        }
+    }
+
+    // 2. 合併 Markers (防重複)
+    for (const iso in parsedMarkers) {
+        if (Object.prototype.hasOwnProperty.call(parsedMarkers, iso)) {
+            if (!customMarkers[iso]) {
+                customMarkers[iso] = []; // 確保係陣列
+            }
+            
+            const newMarkers = parsedMarkers[iso];
+            for (const newMark of newMarkers) {
+                // 檢查係咪已存在 (相同 description + color)
+                const exists = customMarkers[iso].some(oldMark => 
+                    oldMark.description === newMark.description && 
+                    oldMark.color === newMark.color
+                );
+                
+                if (!exists) {
+                    customMarkers[iso].push(newMark);
+                    markersAdded++;
+                }
+            }
+        }
+    }
+    
+    return { markersAdded, notesAdded };
 }
 
 
@@ -1169,6 +1298,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const filterOptions12hr = document.getElementById('filterOptions12hr');
   const filterOptions24hr = document.getElementById('filterOptions24hr');
 
+  // --- (v5.13) 獲取匯入 Modal 元素 ---
+  const btnImport = document.getElementById('btnImport');
+  const importModal = document.getElementById('importModal');
+  const btnCancelImport = document.getElementById('btnCancelImport');
+  const btnDoImport = document.getElementById('btnDoImport');
+  const importDataText = document.getElementById('importDataText');
+
 
   let currentGrid = document.getElementById('grid');
   let isAnimating = false; // (保留) 按鈕仍然需要
@@ -1176,7 +1312,7 @@ document.addEventListener('DOMContentLoaded', () => {
   mainWrap.style.position = 'relative';
   mainWrap.style.overflowX = 'hidden';
 
-  if (!currentGrid || !btnToggle12hr || !btnToggle24hr || !markerInfoModal || !btnShowFilter) {
+  if (!currentGrid || !btnToggle12hr || !btnToggle24hr || !markerInfoModal || !btnShowFilter || !btnImport) {
       console.error('Initialization failed: Missing critical DOM elements.');
       return;
   }
@@ -1442,6 +1578,41 @@ document.addEventListener('DOMContentLoaded', () => {
       
       output += "--------------------";
       copyToClipboard(output);
+  });
+  
+  // --- (v5.13) 匯入資料 事件 ---
+  btnImport.addEventListener('click', () => {
+      if (isAnimating) return;
+      showImportModal();
+  });
+  btnCancelImport.addEventListener('click', closeImportModal);
+  importModal.addEventListener('click', (e) => {
+      if (e.target === importModal) closeImportModal();
+  });
+  btnDoImport.addEventListener('click', () => {
+      const text = importDataText.value;
+      if (!text || text.trim() === '') {
+          showModal("請先貼上文字。");
+          return;
+      }
+      
+      try {
+          const { parsedMarkers, parsedNotes } = parseImportedText(text);
+          const { markersAdded, notesAdded } = mergeData(parsedMarkers, parsedNotes);
+          
+          saveData();
+          closeImportModal();
+          
+          // 重新整理
+          const [y, m] = monthPick.value.split('-').map(Number);
+          render(currentGrid, y, m - 1);
+          
+          showModal(`成功匯入 ${markersAdded} 個新標記同 ${notesAdded} 個新備註。`);
+          
+      } catch (e) {
+          console.error("Import failed:", e);
+          showModal("匯入失敗，請檢查文字格式是否正確。");
+      }
   });
 
 
